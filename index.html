@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep North</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #D9D8CF;
+      color: #867A65;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .layout {
+      width: 100%;
+      max-width: 1440px;
+      min-height: calc(100vh - 96px);
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border-top: 1px solid #867A65;
+      padding-top: 20px;
+      /* prevent any content from pushing the panel wider */
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* Left panel */
+    .panel-name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Stack both glitch layers on top of each other */
+    .glitch-stack {
+      display: grid;
+      line-height: 1;
+      white-space: nowrap;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .glitch-stack > span {
+      grid-area: 1 / 1;
+      white-space: nowrap;
+    }
+
+    #ruler {
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #glitch-back  { opacity: 0.5; }
+    #glitch-front { opacity: 1; }
+    #glitch-top   { opacity: 0; }
+
+    /* Right panel */
+    .panel-form {
+      display: flex;
+      align-items: center;
+    }
+
+    .tagline {
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 4px;
+      max-width: 480px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 360px;
+    }
+
+    input[type="email"] {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #867A65;
+      color: #867A65;
+      font-size: 14px;
+      font-family: inherit;
+      padding: 8px 0;
+      outline: none;
+      width: 100%;
+    }
+
+    input[type="email"]::placeholder {
+      color: #867A65;
+      opacity: 0.5;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border: 1px solid #867A65;
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    input[type="checkbox"]:checked {
+      background: #867A65;
+    }
+
+    .checkbox-row a {
+      color: #867A65;
+      text-decoration: underline;
+    }
+
+    button[type="submit"] {
+      align-self: flex-start;
+      background: transparent;
+      border: 1px solid #867A65;
+      color: #867A65;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      padding: 8px 20px;
+      text-transform: uppercase;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    button[type="submit"]:hover {
+      background: #867A65;
+      color: #D9D8CF;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="layout">
+
+    <div class="panel panel-name">
+      <span id="ruler"></span>
+      <div class="glitch-stack">
+        <span id="glitch-back"></span>
+        <span id="glitch-front"></span>
+        <span id="glitch-top"></span>
+      </div>
+    </div>
+
+    <div class="panel panel-form">
+      <div class="form-inner">
+      <p class="tagline">
+        the very good inner north gig guide
+      </p>
+      <form>
+        <input type="email" placeholder="your@email.com" required>
+        <label class="checkbox-row">
+          <input type="checkbox" required>
+          <span>I've read and agree to the <a href="#">privacy policy</a>.</span>
+        </label>
+        <button type="submit">Subscribe</button>
+      </form>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Zalgo/glitch engine ──────────────────────────────────────────────────
+
+    const TOP = (() => {
+      const c = [];
+      for (let i = 768; i <= 789; i++) c.push(String.fromCharCode(i));
+      c.push(String.fromCharCode(794), String.fromCharCode(795));
+      for (let i = 829; i <= 836; i++) c.push(String.fromCharCode(i));
+      [836,838,842,843,844,848,849,850,855,856,859,861,861,864,865].forEach(n => c.push(String.fromCharCode(n)));
+      return c;
+    })();
+
+    const MIDDLE = [820,821,822,823,824].map(n => String.fromCharCode(n));
+
+    const BOTTOM = (() => {
+      const c = [];
+      for (let i = 790; i <= 819; i++) {
+        if (i !== 794 && i !== 795) c.push(String.fromCharCode(i));
+      }
+      for (let i = 825; i <= 828; i++) c.push(String.fromCharCode(i));
+      [845,846,851,852,853,854,857,858,860,863].forEach(n => c.push(String.fromCharCode(n)));
+      return c;
+    })();
+
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function glitch(text, { maxHeight = 15, randomization = 100, top = true, middle = true, bottom = true } = {}) {
+      let out = '';
+      for (const ch of text) {
+        let r = ch;
+        if (middle) r += pick(MIDDLE);
+        if (top) {
+          const count = Math.floor(maxHeight - Math.random() * (randomization / 100 * maxHeight));
+          for (let i = 0; i < count; i++) r += pick(TOP);
+        }
+        if (bottom) {
+          const count = Math.floor(maxHeight - Math.random() * (randomization / 100 * maxHeight));
+          for (let i = 0; i < count; i++) r += pick(BOTTOM);
+        }
+        out += r;
+      }
+      return out;
+    }
+
+    // ── Layer configs ────────────────────────────────────────────────────────
+
+    const BACK  = { maxHeight: 150, randomization: 0,   top: true,  middle: false, bottom: true };
+    const FRONT = { maxHeight: 60,  randomization: 100, top: true,  middle: true,  bottom: true };
+
+    // ── Responsive font fitting ──────────────────────────────────────────────
+
+    const SOURCE = 'deep north';
+    const panel  = document.querySelector('.panel-name');
+    const stack  = document.querySelector('.glitch-stack');
+    const backEl  = document.getElementById('glitch-back');
+    const frontEl = document.getElementById('glitch-front');
+    const topEl   = document.getElementById('glitch-top');
+
+    // Ruler lives inside the panel so it inherits the exact same rendering
+    // context (font, subpixel rounding) as the live glitch text.
+    const ruler = document.getElementById('ruler');
+    ruler.textContent = SOURCE;
+
+    function fitFont() {
+      const available = panel.clientWidth - 30;
+      let lo = 1, hi = 800;
+      while (hi - lo > 0.5) {
+        const mid = (lo + hi) / 2;
+        ruler.style.fontSize = mid + 'px';
+        if (ruler.getBoundingClientRect().width <= available) lo = mid;
+        else hi = mid;
+      }
+      const size = Math.floor(lo) + 'px';
+      stack.style.fontSize = size;
+      ruler.style.fontSize = size;
+    }
+
+    window.addEventListener('resize', fitFont);
+
+    // ── Glitch loop ──────────────────────────────────────────────────────────
+
+    function tick() {
+      backEl.textContent  = glitch(SOURCE, BACK);
+      frontEl.textContent = glitch(SOURCE, FRONT);
+      topEl.textContent   = SOURCE;
+    }
+
+    // Defer until after first layout so panel.clientWidth is non-zero.
+    requestAnimationFrame(() => {
+      fitFont();
+      tick();
+      setInterval(tick, 100);
+    });
+  </script>
+</body>
+</html>
