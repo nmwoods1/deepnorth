@@ -176,13 +176,14 @@
       <p class="tagline">
         the very good inner north gig guide
       </p>
-      <form>
-        <input type="email" placeholder="your@email.com" required>
+      <form id="subscribe-form">
+        <input type="email" id="subscribe-email" placeholder="your@email.com" required>
         <label class="checkbox-row">
           <input type="checkbox" required>
           <span>I've read and agree to the <a href="#">privacy policy</a>.</span>
         </label>
         <button type="submit">Subscribe</button>
+        <p id="subscribe-msg" style="font-size:13px;min-height:1.4em;"></p>
       </form>
       </div>
     </div>
@@ -281,6 +282,38 @@
       fitFont();
       tick();
       setInterval(tick, 100);
+    });
+
+    // ── Subscribe form ───────────────────────────────────────────────────────
+
+    const WORKER_URL = "https://deepnorth-subscribe.n-m-woods1.workers.dev";
+
+    document.getElementById("subscribe-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("subscribe-email").value;
+      const msg   = document.getElementById("subscribe-msg");
+      const btn   = e.target.querySelector("button[type=submit]");
+
+      btn.disabled = true;
+      msg.textContent = "";
+
+      try {
+        const res = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (res.ok) {
+          msg.textContent = "you're in. see you monday.";
+          e.target.reset();
+        } else {
+          msg.textContent = "something went wrong — try again.";
+          btn.disabled = false;
+        }
+      } catch {
+        msg.textContent = "couldn't reach the server — try again.";
+        btn.disabled = false;
+      }
     });
   </script>
 </body>
