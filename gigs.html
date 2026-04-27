@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep North — Week of 27 Apr 2026</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:#D9D8CF;color:#867A65;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  display:flex;flex-direction:column;min-height:100vh;
+}
+a{color:#867A65;}
+a.spotify{color:#1a0dab;}
+
+.site-header{
+  border-bottom:1px solid #867A65;padding:18px 24px;
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.brand{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;}
+.week-label{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.65;}
+
+.controls{
+  border-bottom:1px solid #867A65;padding:14px 24px;
+  display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;font-size:11px;
+  letter-spacing:0.06em;text-transform:uppercase;
+}
+.control-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.control-label{opacity:0.65;margin-right:4px;}
+.chip{
+  display:inline-block;border:1px solid #867A65;color:#867A65;background:transparent;
+  padding:4px 10px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  cursor:pointer;font-family:inherit;
+}
+.chip.active{background:#867A65;color:#D9D8CF;}
+.chip:focus{outline:1px dotted #867A65;outline-offset:2px;}
+input[type=time]{
+  border:1px solid #867A65;background:transparent;color:#867A65;
+  padding:3px 6px;font-family:inherit;font-size:11px;
+}
+.reset{margin-left:auto;}
+
+main{display:flex;flex:1 1 auto;min-height:0;}
+
+.list-pane{
+  width:55%;max-width:720px;overflow-y:auto;padding:0 24px 48px;
+  border-right:1px solid #867A65;
+}
+.map-pane{flex:1 1 auto;position:relative;}
+#map{position:absolute;inset:0;}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(9deg);}
+
+.empty{padding:48px 24px;font-size:12px;opacity:0.65;}
+
+.day-divider{
+  border-top:1px solid #867A65;padding:18px 0 12px;margin-top:8px;
+  font-size:12px;letter-spacing:0.10em;text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.day-divider:first-child{border-top:none;}
+.day-divider .playlist-link{
+  font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  border:1px solid #867A65;padding:3px 10px;text-decoration:none;
+}
+
+.gig{
+  padding:18px 0;border-bottom:1px solid rgba(134,122,101,0.2);
+  cursor:pointer;
+}
+.gig:last-child{border-bottom:none;}
+.gig.is-active{background:rgba(134,122,101,0.1);}
+.gig-title{font-size:15px;margin-bottom:4px;}
+.gig-meta{font-size:12px;opacity:0.70;margin-bottom:6px;}
+.gig-meta a{color:inherit;text-decoration:underline;}
+.gig-lineup{font-size:12px;line-height:1.5;margin-bottom:6px;}
+.gig-lineup a{text-decoration:underline;}
+.no-coords{
+  font-size:9px;letter-spacing:0.08em;text-transform:uppercase;
+  border:1px solid rgba(134,122,101,0.5);padding:1px 6px;margin-left:6px;opacity:0.6;
+}
+.view-event{font-size:11px;letter-spacing:0.04em;}
+
+.leaflet-popup-content-wrapper{
+  background:#D9D8CF !important;border:1px solid #867A65 !important;
+  border-radius:0 !important;box-shadow:none !important;padding:0 !important;
+}
+.leaflet-popup-tip{background:#D9D8CF !important;box-shadow:none !important;}
+.leaflet-popup-tip-container{margin-top:-1px;}
+.leaflet-popup-content{margin:0 !important;color:#867A65;font-family:inherit;}
+.leaflet-popup-close-button{color:#867A65 !important;font-size:16px !important;top:8px !important;right:8px !important;}
+.popup-inner{padding:14px 18px 12px;min-width:220px;max-width:280px;}
+.popup-venue{
+  font-size:11px;letter-spacing:0.10em;text-transform:uppercase;
+  margin-bottom:12px;border-bottom:1px solid rgba(134,122,101,0.3);padding-bottom:8px;
+}
+.popup-venue a{color:#867A65;text-decoration:none;}
+.popup-gig{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(134,122,101,0.15);}
+.popup-gig:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
+.popup-title{font-size:13px;margin-bottom:3px;}
+.popup-meta{font-size:11px;opacity:0.65;margin-bottom:3px;}
+.popup-lineup{font-size:11px;margin-bottom:5px;line-height:1.4;}
+.popup-link{font-size:10px;letter-spacing:0.05em;}
+
+.dn-marker{
+  width:10px;height:10px;background:#867A65;
+  border:2px solid #D9D8CF;border-radius:50%;box-shadow:0 0 0 1px #867A65;
+}
+
+.site-footer{
+  border-top:1px solid #867A65;padding:14px 24px;font-size:10px;
+  letter-spacing:0.10em;text-transform:uppercase;opacity:0.5;
+}
+
+@media (max-width:780px){
+  main{flex-direction:column;}
+  .list-pane{width:100%;max-width:none;border-right:none;border-bottom:1px solid #867A65;order:2;}
+  .map-pane{height:50vh;flex:0 0 auto;order:1;}
+}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <span class="brand">Deep North</span>
+  <span class="week-label">Week of 27 Apr 2026 &middot; <span id="result-count"></span></span>
+</header>
+<section class="controls">
+  <div class="control-group">
+    <span class="control-label">Sort</span>
+    <button class="chip" data-sort="date">Date</button>
+    <button class="chip" data-sort="venue">Venue</button>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Date</span>
+    <span id="date-chips"></span>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Start time</span>
+    <input type="time" id="time-min" aria-label="From">
+    <span style="opacity:.5;">–</span>
+    <input type="time" id="time-max" aria-label="To">
+  </div>
+  <div class="control-group">
+    <span class="control-label">Entry</span>
+    <button class="chip" data-entry="free">Free</button>
+    <button class="chip" data-entry="ticketed">Ticketed</button>
+  </div>
+  <div class="control-group" style="flex-basis:100%;">
+    <span class="control-label">Venue</span>
+    <span id="venue-chips"></span>
+  </div>
+  <button class="chip reset" id="reset">Reset</button>
+</section>
+<main>
+  <div class="list-pane" id="list"></div>
+  <div class="map-pane"><div id="map"></div></div>
+</main>
+<footer class="site-footer">the very good inner north gig guide</footer>
+<script>
+const GIGS = [{"date": "2026-04-27", "time": "17:00", "title": "NIEUW MONDAYS", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "DJs", "url": "https://open.spotify.com/artist/13qjHQyFpjR48hBIbPrwMx"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/667dde35-9599-4067-8160-3ad6edbec501?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/7kVvT1iRTWlbJWcxCvPXPn"}, {"date": "2026-04-27", "time": "20:00", "title": "\u2663\ufe0e OUR WEEKENDS END ON MONDAYS! \u2663\ufe0e Kitty Mustang + Zero City", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "Kitty Mustang", "url": "https://open.spotify.com/artist/1jIXKhg44m8PNJuJhTOaDg"}, {"name": "Zero City", "url": "https://open.spotify.com/artist/50lh0vyXhOCLCMbfKvGc7x"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/1495797259013360/", "playlist_url": "https://open.spotify.com/playlist/7kVvT1iRTWlbJWcxCvPXPn"}, {"date": "2026-04-28", "time": "19:00", "title": "RESIDENCY: Mutton Tuesdays ft. Mary & the Little Lambs", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "Mary & the Little Lambs", "url": null}, {"name": "Keira J", "url": "https://open.spotify.com/artist/6LYLpJfLccrapaidwxH6ZB"}, {"name": "the Mice", "url": "https://open.spotify.com/artist/1bRYbxqrKiZeulvEc9JsOu"}, {"name": "Lifetime Warranty", "url": "https://open.spotify.com/artist/5bTPE8DoiYlZc4GOgViHKe"}], "is_free": false, "price_str": "$15.00", "price_value": 15.0, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/7406aa28-c5e8-44fe-9020-ae84cea8b1fc?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/4atnk2c6aCqC9oC4XIFKy2"}, {"date": "2026-04-28", "time": "19:30", "title": "Front Bar: Workers Pub Quiz", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "DJ Hot Wheels", "url": null}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/1048d349-818c-4eb1-8618-f737261edfab?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/4atnk2c6aCqC9oC4XIFKy2"}, {"date": "2026-04-28", "time": "20:00", "title": "Don't Sweat the Technique", "venue": "Shotkickers", "lat": -37.7559265, "lng": 145.0013923, "google_maps_url": null, "lineup": [{"name": "Tumi the Be", "url": "https://open.spotify.com/artist/26UGPuYQ4aafghKIp5NQ04"}, {"name": "Pascal", "url": "https://open.spotify.com/artist/5X5cGjYEmKnuihYXEePQcs"}, {"name": "Tanya George", "url": "https://open.spotify.com/artist/6pR2SwfYGDdsiXFFOUlpY9"}, {"name": "Mono the Messenger", "url": "https://open.spotify.com/artist/3DFP5wEkWIjeGaQCfCPu2L"}, {"name": "Life of Shira", "url": null}, {"name": "DJ Ki", "url": "https://open.spotify.com/artist/0MgbfrrFPrMo31wNsxtPBQ"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/4atnk2c6aCqC9oC4XIFKy2"}, {"date": "2026-04-29", "time": "19:00", "title": "SATINOVA - Debut Show", "venue": "Cactus Room Thornbury", "lat": -37.7612582, "lng": 145.0004166, "google_maps_url": null, "lineup": [{"name": "SATINOVA", "url": null}, {"name": "Lara Anderson", "url": "https://open.spotify.com/artist/0ijXDXPqvo3fzBrGpVjpV4"}, {"name": "Girl From Nowhere", "url": "https://open.spotify.com/artist/5gx9iZWyZtqzd9BJy2j4YU"}], "is_free": false, "price_str": "$12.00", "price_value": 12.0, "ticket_url": "https://tickets.oztix.com.au/outlet/event/982a94a9-09c9-4c99-b639-a4a13b263e24", "playlist_url": "https://open.spotify.com/playlist/3nxC7Df9zqSnEehYHmPw6v"}, {"date": "2026-04-29", "time": "19:00", "title": "Daisy Sampson w/ Stockings and Jack Haynes", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "Daisy Sampson", "url": "https://open.spotify.com/artist/25fARbS1Drs4XQPuBpgOxh"}, {"name": "Stockings", "url": "https://open.spotify.com/artist/2cgNeW1gQCCXEDy7wcG1hX"}, {"name": "Jack Haynes", "url": "https://open.spotify.com/artist/5eNEd7EUyCNoqhcRRY6h8N"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/3nxC7Df9zqSnEehYHmPw6v"}, {"date": "2026-04-29", "time": "19:00", "title": "DOLE NIGHT w/ Big Moist and the Smoking Durries + KAMBIOl", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "Big Moist and the Smoking Durries", "url": "https://open.spotify.com/artist/3hRbKdzavSE8TPCvr4BpjF"}, {"name": "Kambio", "url": "https://open.spotify.com/artist/6i2K6ycGknlY5r8YOnI8bD"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/f54a1be7-f3c5-4394-b07d-bfb97efdb0fb?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/3nxC7Df9zqSnEehYHmPw6v"}, {"date": "2026-04-29", "time": "19:00", "title": "RESIDENCY: Midweek Shuffle: Blues & Country ft. Cameron Gould", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "Cameron Gould", "url": "https://open.spotify.com/artist/041ZnA1iJUchyZmbwGtMUx"}, {"name": "C\u00e9cile Gardens", "url": "https://open.spotify.com/artist/6GzHVjuX30LgNncT8Crl5c"}, {"name": "Torin Harte", "url": null}, {"name": "Bella McMahon", "url": null}], "is_free": false, "price_str": "$10.00", "price_value": 10.0, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/f2b35ff6-73ce-44a8-a79e-90bdb35b5136?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/3nxC7Df9zqSnEehYHmPw6v"}, {"date": "2026-04-29", "time": "20:00", "title": "PUNTERS COMEDY CLUB \u2663\ufe0e IN THE PUNTERS LOUNGE", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/1451070323258185/", "playlist_url": "https://open.spotify.com/playlist/3nxC7Df9zqSnEehYHmPw6v"}, {"date": "2026-04-30", "time": "", "title": "Badlanders", "venue": "Shotkickers", "lat": -37.7559265, "lng": 145.0013923, "google_maps_url": null, "lineup": [{"name": "Badlanders", "url": "https://open.spotify.com/artist/0W8P4g3jnnJ4SuXCPkSmJP"}, {"name": "The Flickering Stars", "url": null}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://tickets.oztix.com.au/outlet/event/7d9e0b19-cf55-403e-b534-a07e1bde4aaf", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-04-30", "time": "19:00", "title": "the greatest music bill ever assembled", "venue": "Cactus Room Thornbury", "lat": -37.7612582, "lng": 145.0004166, "google_maps_url": null, "lineup": [{"name": "Macropcarpa", "url": null}], "is_free": false, "price_str": "$20.00", "price_value": 20.0, "ticket_url": "https://events.humanitix.com/tgmbea/tickets", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-04-30", "time": "19:00", "title": "ANGLERR 'Sea Shells' Single Launch w/ Waxman & Crash_08", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "ANGLERR", "url": "https://open.spotify.com/artist/0aOBjPFYQJIjVZ6BFkB1Xe"}, {"name": "Crash_08", "url": "https://open.spotify.com/artist/0UYrDICfLP1lccvCZMEFwt"}, {"name": "Waxman", "url": "https://open.spotify.com/artist/04ekquPFZIvL2WghugNKG3"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.eventbrite.com.au/e/1984855591505", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-04-30", "time": "19:00", "title": "DEDFATE", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "DedFate", "url": "https://open.spotify.com/artist/4feXWuhjgsF56SK7qZUHIE"}, {"name": "Border of Reason", "url": "https://open.spotify.com/artist/4Ntcp9EpnYo5KyfUvv5cMD"}, {"name": "HATRIARCH", "url": null}], "is_free": false, "price_str": "$17.85", "price_value": 17.85, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/b72168be-49bc-45c7-ab09-44c7062c48db?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-04-30", "time": "19:30", "title": "AND THE CLOUDS MOVED ON, Flowers In The Attic, Kambio @ The Tote (Upstairs)", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "AND THE CLOUDS MOVED ON", "url": null}, {"name": "Flowers In The Attic", "url": "https://open.spotify.com/artist/3DGkLsegGRIqcXhA0GH3NF"}, {"name": "Kambio", "url": "https://open.spotify.com/artist/6i2K6ycGknlY5r8YOnI8bD"}], "is_free": false, "price_str": "$15.00", "price_value": 15.0, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/6da60872-e8a8-4c98-b2ba-3089d2dd3b0f?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-04-30", "time": "20:00", "title": "The Mundaynes 'Big Pants' Nighthawks Residency - #5 - Frons + Techno 666", "venue": "Nighthawks", "lat": -37.7985, "lng": 144.979, "google_maps_url": null, "lineup": [{"name": "The Mundaynes", "url": "https://open.spotify.com/artist/7BUE4cOQdzztRIqvL9yz1g"}, {"name": "Frons", "url": "https://open.spotify.com/artist/4Sps21NzzUK8pSgBbRDUaU"}, {"name": "Techno 666", "url": "https://open.spotify.com/artist/6PukL2vThNK6MXCmavthke"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://events.humanitix.com/the-mundaynes-big-pants-nighthawks-residency", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-04-30", "time": "22:00", "title": "The Lazy Eyes | LIVE", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "The Lazy Eyes", "url": "https://open.spotify.com/artist/5ZCOgPpZNvlJEBnUZnDqW8"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/4488889861396157/", "playlist_url": "https://open.spotify.com/playlist/1E3LRpyCQm6w1BWVavxk0t"}, {"date": "2026-05-01", "time": "", "title": "Nausicaa \u2013 Dreams Like These Album Launch", "venue": "Shotkickers", "lat": -37.7559265, "lng": 145.0013923, "google_maps_url": null, "lineup": [{"name": "Nausicaa", "url": "https://open.spotify.com/artist/4uHSm2sv1Ug7V4jNCUcKe7"}, {"name": "Idle Flowers", "url": null}, {"name": "Splitlanes", "url": "https://open.spotify.com/artist/3yrtVFf6aqyxcuKyY9z0OS"}, {"name": "Human Intrusion", "url": "https://open.spotify.com/artist/4H6S9Rbgucu8nBvpWPnaMJ"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://tickets.oztix.com.au/outlet/event/d435eb3d-3649-4f56-be5c-147fad9f08e7", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "", "title": "WAAX - Angel's Mess Album Tour", "venue": "The Night Cat", "lat": -37.7983052, "lng": 144.9794393, "google_maps_url": null, "lineup": [{"name": "WAAX", "url": "https://open.spotify.com/artist/1KaaogmGXWK1Qi3WR81Tmi"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.universe.com/events/waax-angel-s-mess-album-tour-tickets-YZ7GSJ", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "19:00", "title": "Ojiaji", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "Ojiaji", "url": "https://open.spotify.com/artist/1l4etvGDIQPx1tsTA5CRfM"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "19:00", "title": "WEREWOLF", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "WEREWOLF", "url": "https://open.spotify.com/artist/2MJFwLhYGlcvVhVrOwxPS3"}, {"name": "Suspended Animation", "url": "https://open.spotify.com/artist/6aGMEDrM8G8s5WYoihmpm5"}, {"name": "Pressure Point Zero", "url": null}, {"name": "Deep Majestic Thunder", "url": "https://open.spotify.com/artist/6GqRO8pFzwbbnpGXJbTZ6P"}, {"name": "Tongue Biter", "url": null}], "is_free": false, "price_str": "$15.00", "price_value": 15.0, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/312c8974-d424-494d-b884-842563ab755d?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "20:00", "title": "Sylvia / Gun Laws / Blood Thinners", "venue": "Nighthawks", "lat": -37.7985, "lng": 144.979, "google_maps_url": null, "lineup": [{"name": "Sylvia", "url": "https://open.spotify.com/artist/1oEFoNbrqTYuHrmBVaKSSl"}, {"name": "Gun Laws", "url": "https://open.spotify.com/artist/36jbmM4NziTEzVSkcZ0Gtw"}, {"name": "Blood Thinners", "url": "https://open.spotify.com/artist/204j4OFoevkWBRWnneZNj7"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://events.humanitix.com/blood-thinners-and-friends-nighthawks", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "20:00", "title": "Mutal Friends of Former Lovers - Maplewood Single Launch", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "Mutual Friends of Former Lovers", "url": "https://open.spotify.com/artist/2pf6QP2VvaOOETidddScU5"}, {"name": "Darning", "url": "https://open.spotify.com/artist/6YNRDFEE4VV0bSV2jIAeNH"}, {"name": "The Foams", "url": "https://open.spotify.com/artist/1WSu3hZvquEVQNXY2SOjBH"}], "is_free": false, "price_str": "$11.25", "price_value": 11.25, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/6fb7ba94-a122-402b-8eda-095bcccda9de?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "20:00", "title": "ZYMETIME PRESENTS: SLANT (KOR), HACKER, PAROXYS, RAT BAIT & MKNAOMI", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "Slant", "url": "https://open.spotify.com/artist/0ozfyvvBLbIbuhELtY1sGX"}, {"name": "Hacker", "url": "https://open.spotify.com/artist/763V8ZisRsw5kCoquzKTUp"}, {"name": "Paroxys", "url": "https://open.spotify.com/artist/3MTAoAaumx5aFLmn6k9PeW"}, {"name": "Rat Bait", "url": "https://open.spotify.com/artist/3JH30wEMBYBBTqH7UJxHnI"}, {"name": "MKNAOMI", "url": "https://open.spotify.com/artist/4JVY7Ke7VQaYN6ILTWoICi"}], "is_free": false, "price_str": "$36.25", "price_value": 36.25, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/f2545cdb-3fd8-44db-8b11-ca9882dd9522?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-01", "time": "21:00", "title": "College of Knowledge pres. Soul Dynamite with Stuckey & Miss Goldie | Punters DJ sessions", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "Soul Dynamite", "url": "https://open.spotify.com/artist/5Eh2vXCwzVVgIxTT1Hg7YW"}, {"name": "Stuckey", "url": "https://open.spotify.com/artist/3fE1bABhK4cwbGd0uW6xVH"}, {"name": "Miss Goldie", "url": "https://open.spotify.com/artist/2LvYmUnYGoUgNZYyNA37vm"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.facebook.com/events/1273356261564956/", "playlist_url": "https://open.spotify.com/playlist/4B3UwmeMM3yJTbQF12N3dH"}, {"date": "2026-05-02", "time": "", "title": "Trunk Jam", "venue": "Shotkickers", "lat": -37.7559265, "lng": 145.0013923, "google_maps_url": null, "lineup": [{"name": "SLAUX", "url": "https://open.spotify.com/artist/3GDJ5nqnTi2oz2zzDioZxl"}, {"name": "Lalu", "url": "https://open.spotify.com/artist/4jAwNqt2DsEm2u3jmTGD4Z"}, {"name": "Knight Rider", "url": "https://open.spotify.com/artist/2iCx6qDm96w9a1rtdUsTe0"}, {"name": "Hannah and The Heartstrings", "url": "https://open.spotify.com/artist/3aSBt3ZuGJQZ52rm2Y7uOe"}, {"name": "Mondo Cane", "url": "https://open.spotify.com/artist/48AB4g7D8UBDyN9mMWOR5K"}, {"name": "Huskees", "url": "https://open.spotify.com/artist/4wfsuazv3y02pxt8MmHZD2"}, {"name": "Issy and Akira", "url": null}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://tickets.oztix.com.au/outlet/event/d61ed73f-86c3-408a-a257-97a16bcae54b", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "", "title": "24 HOURS OF MILO", "venue": "The Night Cat", "lat": -37.7983052, "lng": 144.9794393, "google_maps_url": null, "lineup": [{"name": "24 HOURS OF MILO", "url": null}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.universe.com/events/24-hours-of-milo-tickets-7NYSW6", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "13:00", "title": "Cold Irons Bound", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "Cold Irons Bound", "url": "https://open.spotify.com/artist/3AvtL3CQxZuUoEfO1PcZlX"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "13:00", "title": "MATINEE: Optic", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "Optic", "url": "https://open.spotify.com/artist/1vRz3sCz7iKtrmXK4HB1MI"}, {"name": "Akira", "url": "https://open.spotify.com/artist/0OkFVhBMPKQtmBj2YRy3Vu"}, {"name": "Whose House is This", "url": null}], "is_free": false, "price_str": "$10.00", "price_value": 10.0, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/9614cc5c-7830-4424-951e-3ce4685597c5?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "15:00", "title": "Seedy Jeezus \u2014 Prog Set w/ The Miffs & Foot (Nighthawks Residency)", "venue": "Nighthawks", "lat": -37.7985, "lng": 144.979, "google_maps_url": null, "lineup": [{"name": "Seedy Jeezus", "url": "https://open.spotify.com/artist/79JQ1pUrBJFUIMJTEs1dVC"}, {"name": "The Miffs", "url": "https://open.spotify.com/artist/5sWwjadzJRlCu4eymNIvh5"}, {"name": "Foot", "url": null}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://events.humanitix.com/seedy-jeezus-nighthawks-residency-may-2026", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "17:00", "title": "Good Music presents All Star", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "Good Music", "url": "https://open.spotify.com/artist/7q7VVL0f9uICWdASxv1d9M"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "18:30", "title": "ENZYME \"OLDER AND NOISIER\" 10 YEAR ANNIVERSARY", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "Enzyme", "url": "https://open.spotify.com/artist/0rKS9aTsSWXKCwChquop2F"}, {"name": "Sukatani", "url": "https://open.spotify.com/artist/6j1La1fkBWt6vQcwwXla0w"}, {"name": "Slant", "url": "https://open.spotify.com/artist/0ozfyvvBLbIbuhELtY1sGX"}, {"name": "Gaoled", "url": "https://open.spotify.com/artist/56SYMbKRpFrgpaw2KonMAF"}, {"name": "Cr\u00eaam S\u00f6da", "url": "https://open.spotify.com/artist/3bmcpEednVDzFUBkO0rtSo"}, {"name": "Vasta Ruina", "url": null}, {"name": "Vampire", "url": "https://open.spotify.com/artist/5BvJzeQpmsdsFp4HGUYUEx"}, {"name": "Shove", "url": "https://open.spotify.com/artist/3H9aUontw9uSlcCDrKwJoE"}, {"name": "Involucro", "url": "https://open.spotify.com/artist/6rUSLxDrXFEXiAHhWTH5JO"}], "is_free": false, "price_str": "$55.60", "price_value": 55.6, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/e7005892-29a2-420f-b4f5-9a800f2957c3?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "19:00", "title": "Snailgun - Glass Walls ALBUM LAUNCH", "venue": "Cactus Room Thornbury", "lat": -37.7612582, "lng": 145.0004166, "google_maps_url": null, "lineup": [{"name": "Snailgun", "url": "https://open.spotify.com/artist/32klh54Xut7Fyu3yc1J5YJ"}, {"name": "No Hoper", "url": "https://open.spotify.com/artist/2rd0c98cNhoPLP3p2hZkpJ"}, {"name": "Waxman", "url": "https://open.spotify.com/artist/04ekquPFZIvL2WghugNKG3"}, {"name": "Winternationale", "url": "https://open.spotify.com/artist/1Fs8DT2yzm0dxpUD7sKJtV"}], "is_free": false, "price_str": "$15.00", "price_value": 15.0, "ticket_url": "https://tickets.oztix.com.au/outlet/event/253c7772-6a13-4da5-bedd-ac2824e84493", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "19:00", "title": "SWEETIE & FRIENDS | ROOFTOP VINYL PARTY", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "Sweetie & Friends", "url": null}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.facebook.com/events/4445005662407461/", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "20:00", "title": "Okay Dane w/ Materia, and Dempsey", "venue": "Nighthawks", "lat": -37.7985, "lng": 144.979, "google_maps_url": null, "lineup": [{"name": "Okay Dane", "url": "https://open.spotify.com/artist/7fB8Sfdvd6FNGLTZJ7XhaC"}, {"name": "Materia", "url": "https://open.spotify.com/artist/7yegFhKemMedsme3entsAW"}, {"name": "Dempsey", "url": "https://open.spotify.com/artist/11PYyk3kBXjDIFHiCc0psS"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://events.humanitix.com/the-return-of-okay-dane?_gl=1%2Avsabjg%2A_gcl_au%2AMTAxMDczNDI4NS4xNzc0ODU5NzM1%2A_ga%2AMjEyODQ0OTE3NC4xNzc0ODU5NzM2%2A_ga_LHKW5FR9N6%2AczE3NzQ4NjYzNTUkbzIkZzEkdDE3NzQ4NjY4MzYkajMwJGwwJGgw", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "20:00", "title": "Katana Cartel", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "Katana Cartel", "url": "https://open.spotify.com/artist/6MngbKovX3R5FrHMXbAqaL"}, {"name": "Demonhead", "url": "https://open.spotify.com/artist/00JLjw1G2ftHrwFsakowoQ"}, {"name": "Kings Vengeance", "url": "https://open.spotify.com/artist/4qlNA35XJBmcmJO4PuwOtp"}], "is_free": false, "price_str": "$23.50", "price_value": 23.5, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/8d1fdf98-c8ea-448b-b4ad-5c45a5f5abf0?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-02", "time": "22:00", "title": "REAL SUNNIES | LIVE", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "Real Sunnies", "url": null}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/1655565028806015/", "playlist_url": "https://open.spotify.com/playlist/00hULCU7rRWrl0vyg7KBwI"}, {"date": "2026-05-03", "time": "", "title": "Forklift Assaassins", "venue": "Shotkickers", "lat": -37.7559265, "lng": 145.0013923, "google_maps_url": null, "lineup": [{"name": "Forklift Assassins", "url": "https://open.spotify.com/artist/5sDFeX2g787O6qRnsWbOcQ"}, {"name": "Rollanova", "url": null}, {"name": "Keggin", "url": "https://open.spotify.com/artist/76s3WnXyMF5bFeKYYsbEwA"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://tickets.oztix.com.au/outlet/event/21cea268-68ed-4e51-9a72-b6a5a3301e4b", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "", "title": "Domingo Latino with Tumbao Social", "venue": "The Night Cat", "lat": -37.7983052, "lng": 144.9794393, "google_maps_url": null, "lineup": [{"name": "Tumbao Social", "url": "https://open.spotify.com/artist/7DnqNp4XFb2lDz3SdfQPU0"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.universe.com/events/domingo-latino-with-tumbao-social-tickets-SRHTND", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "13:00", "title": "Sunday Matinee Residency: Hot Milk Machine", "venue": "The Workers Club", "lat": -37.8055776, "lng": 144.9769451, "google_maps_url": null, "lineup": [{"name": "Hot Milk Machine", "url": "https://open.spotify.com/artist/0FYHeY6e5AZmUjz3VgEk4w"}, {"name": "The Rartel", "url": "https://open.spotify.com/artist/49WObAFa8V4UQonjJjGaGt"}, {"name": "Big Village", "url": "https://open.spotify.com/artist/3xXHUf9WZITllEUYx7xQMn"}], "is_free": false, "price_str": "$12.75", "price_value": 12.75, "ticket_url": "https://theworkersclub.oztix.com.au/outlet/event/8c725294-3959-4c67-b84a-f74863d714b8?utm_source=TheWorkersClub&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "14:00", "title": "The TOMMYS", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "The TOMMYS", "url": "https://open.spotify.com/artist/0aTbAZB3iSgTQS45yFLfFU"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "14:00", "title": "St Albans Kids @ The Tote 3/5/26", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "St Albans Kids", "url": "https://open.spotify.com/artist/0CxRlH3FBeYWJb8vJ6ICBZ"}, {"name": "Messianic Gloss", "url": null}, {"name": "Sin Bin", "url": null}, {"name": "Chromatin", "url": null}, {"name": "External Organ", "url": "https://open.spotify.com/artist/2wPbsI1d0pXc3iLujU3mQV"}], "is_free": false, "price_str": "$16.35", "price_value": 16.35, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/b31c59b6-dd5a-4613-a313-f3de7c4ee59a?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "15:00", "title": "THE PUNTERS | LIVE JAZZ EVERY SUNDAY", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "The Punters", "url": "https://open.spotify.com/artist/2uaHG4CuGwHg1cGlw5sAfD"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/945381591747474/", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "15:00", "title": "YOUR MOTHERS DISGUSTING WINDOW, WAXMAN & MESSY INSIDES afternoon assault in The Tote Front Bar, Sunday May 3rd", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "Your Mothers Disgusting Window", "url": null}, {"name": "Waxman", "url": "https://open.spotify.com/artist/04ekquPFZIvL2WghugNKG3"}, {"name": "MESSY INSIDES", "url": null}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/b7cf3939-8f56-459f-9d12-8ecc431227ec?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "17:00", "title": "FINOJET: Aescher Tour Melbourne", "venue": "Nighthawks", "lat": -37.7985, "lng": 144.979, "google_maps_url": null, "lineup": [{"name": "Finojet", "url": "https://open.spotify.com/artist/3rbtqBwD7Fomknp5hnORwC"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://events.humanitix.com/finojet-aescher-tour-melbourne", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "17:00", "title": "College of Knowledge DJs", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "STUCKEY", "url": "https://open.spotify.com/artist/3fE1bABhK4cwbGd0uW6xVH"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "18:00", "title": "The Bushfire Benefit featuring Bo Maker, Charlie McCosh and dash", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "Bo Maker", "url": "https://open.spotify.com/artist/5X5LUJ003V9rzkhXkx23mH"}, {"name": "Charlie McCosh", "url": "https://open.spotify.com/artist/04QSyASb3CHXrN9bEnidfY"}, {"name": "dash", "url": "https://open.spotify.com/artist/7Ez6lTtSMjMf2YSYpukP1I"}], "is_free": false, "price_str": null, "price_value": null, "ticket_url": "https://www.eventbrite.com.au/e/1986900356452", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "19:00", "title": "NPC Upstairs at The Tote w/ Cosimo + Julius Geezer", "venue": "The Tote", "lat": -37.7995023, "lng": 144.9871252, "google_maps_url": null, "lineup": [{"name": "NPC", "url": "https://open.spotify.com/artist/3YEsNNbHlb88K9QCog4R0Y"}, {"name": "Cosimo", "url": "https://open.spotify.com/artist/3OD1CyG28KeBGjbjrBp9Dz"}, {"name": "Julius Geezer", "url": "https://open.spotify.com/artist/32WJGIKhU282LvvEHcB89K"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://thetotehotel.oztix.com.au/outlet/event/ee7a7634-3d07-421d-ac6a-ddec2d56e373?utm_source=TheToteHotel&utm_medium=Website", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-03", "time": "20:30", "title": "Jacot\u00e8ne | LIVE", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "Jacot\u00e8ne", "url": "https://open.spotify.com/artist/1vPK0KqkfnZzdpKDC2l3rd"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/2125487551519285/", "playlist_url": "https://open.spotify.com/playlist/145hCeEriMjCCGTwQZK6c4"}, {"date": "2026-05-04", "time": "19:00", "title": "Jazz School \"Kiss it Better Jam\"", "venue": "The Retreat Hotel", "lat": -37.773, "lng": 144.961, "google_maps_url": null, "lineup": [{"name": "Jazz School", "url": null}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "", "playlist_url": "https://open.spotify.com/playlist/6u9uUymWeVkuTyQ1uuTvUx"}, {"date": "2026-05-04", "time": "20:00", "title": "\u2663\ufe0e OUR WEEKENDS END ON MONDAYS! \u2663\ufe0e Mia Marcelle", "venue": "Punters Club", "lat": -37.7960561, "lng": 144.9790327, "google_maps_url": null, "lineup": [{"name": "Mia Marcelle", "url": "https://open.spotify.com/artist/2q992OLEQfLbDdJvW7nWbO"}], "is_free": true, "price_str": "Free", "price_value": 0.0, "ticket_url": "https://www.facebook.com/events/2043431009544532/", "playlist_url": "https://open.spotify.com/playlist/6u9uUymWeVkuTyQ1uuTvUx"}];
+
+(function(){
+  const fmtDate = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-AU', {weekday:'long', day:'numeric', month:'short'});
+  };
+  const fmtShortDate = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'});
+  };
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+
+  const params = new URLSearchParams(location.search);
+  const allDates = Array.from(new Set(GIGS.map(g => g.date))).sort();
+  const allVenues = Array.from(new Set(GIGS.map(g => g.venue))).sort((a,b)=>a.localeCompare(b));
+
+  const csvParam = (k) => {
+    const v = params.get(k);
+    return v ? v.split(',').filter(Boolean) : [];
+  };
+  const state = {
+    sort: params.get('sort') === 'venue' ? 'venue' : 'date',
+    date: params.get('date') || '',
+    timeMin: params.get('time_min') || '',
+    timeMax: params.get('time_max') || '',
+    entry: ['free','ticketed'].includes(params.get('entry')) ? params.get('entry') : '',
+    venues: new Set(csvParam('venues')),
+  };
+
+  const syncUrl = () => {
+    const p = new URLSearchParams();
+    if (state.sort !== 'date') p.set('sort', state.sort);
+    if (state.date) p.set('date', state.date);
+    if (state.timeMin) p.set('time_min', state.timeMin);
+    if (state.timeMax) p.set('time_max', state.timeMax);
+    if (state.entry) p.set('entry', state.entry);
+    if (state.venues.size) p.set('venues', Array.from(state.venues).join(','));
+    const qs = p.toString();
+    history.replaceState(null, '', qs ? '?'+qs : location.pathname);
+  };
+
+  const parseTime = (t) => {
+    if (!t) return null;
+    const m = String(t).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    return parseInt(m[1],10)*60 + parseInt(m[2],10);
+  };
+
+  const filterGigs = () => {
+    const minM = state.timeMin ? parseTime(state.timeMin) : null;
+    const maxM = state.timeMax ? parseTime(state.timeMax) : null;
+    return GIGS.filter(g => {
+      if (state.date && g.date !== state.date) return false;
+      if (state.entry === 'free' && !g.is_free) return false;
+      if (state.entry === 'ticketed' && g.is_free) return false;
+      if (state.venues.size && !state.venues.has(g.venue)) return false;
+      if (minM != null || maxM != null) {
+        const t = parseTime(g.time);
+        if (t == null) return false;
+        if (minM != null && t < minM) return false;
+        if (maxM != null && t > maxM) return false;
+      }
+      return true;
+    });
+  };
+
+  const sortGigs = (list) => {
+    const out = list.slice();
+    out.sort((a,b) => {
+      if (state.sort === 'venue') {
+        const v = a.venue.localeCompare(b.venue);
+        if (v !== 0) return v;
+      }
+      const d = a.date.localeCompare(b.date);
+      if (d !== 0) return d;
+      const at = parseTime(a.time), bt = parseTime(b.time);
+      if (at == null && bt != null) return 1;
+      if (bt == null && at != null) return -1;
+      if (at != null && bt != null && at !== bt) return at - bt;
+      const v2 = a.venue.localeCompare(b.venue);
+      if (v2 !== 0) return v2;
+      return a.title.localeCompare(b.title);
+    });
+    return out;
+  };
+
+  const lineupHtml = (lineup) => {
+    if (!lineup.length) return '<span class="gig-lineup">(artist TBA)</span>';
+    return '<div class="gig-lineup">' + lineup.map(a =>
+      a.url
+        ? `<a class="spotify" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.name)}</a>`
+        : escapeHtml(a.name)
+    ).join(' | ') + '</div>';
+  };
+
+  const popupLineupHtml = (lineup) => {
+    if (!lineup.length) return '<div class="popup-lineup">(artist TBA)</div>';
+    return '<div class="popup-lineup">' + lineup.map(a =>
+      a.url
+        ? `<a class="spotify" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.name)}</a>`
+        : escapeHtml(a.name)
+    ).join(' | ') + '</div>';
+  };
+
+  const venueHtml = (g) => g.google_maps_url
+    ? `<a href="${escapeHtml(g.google_maps_url)}" target="_blank" rel="noopener">${escapeHtml(g.venue)}</a>`
+    : escapeHtml(g.venue);
+
+  const buildVenuePopup = (venueGigs) => {
+    const first = venueGigs[0];
+    let html = '<div class="popup-inner">';
+    html += '<div class="popup-venue">';
+    html += first.google_maps_url
+      ? `<a href="${escapeHtml(first.google_maps_url)}" target="_blank" rel="noopener">${escapeHtml(first.venue)}</a>`
+      : escapeHtml(first.venue);
+    html += '</div>';
+    for (const g of venueGigs) {
+      html += '<div class="popup-gig">';
+      html += `<div class="popup-title">${escapeHtml(g.title)}</div>`;
+      const meta = [];
+      meta.push(fmtShortDate(g.date));
+      if (g.time) meta.push(escapeHtml(g.time));
+      if (g.is_free) meta.push('Free');
+      else if (g.price_str) meta.push(escapeHtml(g.price_str));
+      html += `<div class="popup-meta">${meta.join(' &middot; ')}</div>`;
+      html += popupLineupHtml(g.lineup);
+      if (g.ticket_url) {
+        html += `<div class="popup-link"><a href="${escapeHtml(g.ticket_url)}" target="_blank" rel="noopener">View event &#8594;</a></div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  };
+
+  // ---- DOM setup ----
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('result-count');
+
+  // Filter controls
+  const dateChips = document.getElementById('date-chips');
+  allDates.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.dataset.date = d;
+    b.textContent = fmtShortDate(d);
+    b.addEventListener('click', () => {
+      state.date = (state.date === d) ? '' : d;
+      render();
+    });
+    dateChips.appendChild(b);
+  });
+
+  const venueChips = document.getElementById('venue-chips');
+  allVenues.forEach(v => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.dataset.venue = v;
+    b.textContent = v;
+    b.addEventListener('click', () => {
+      if (state.venues.has(v)) state.venues.delete(v);
+      else state.venues.add(v);
+      render();
+    });
+    venueChips.appendChild(b);
+  });
+
+  document.querySelectorAll('[data-entry]').forEach(b => {
+    b.addEventListener('click', () => {
+      const e = b.dataset.entry;
+      state.entry = (state.entry === e) ? '' : e;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-sort]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.sort = b.dataset.sort;
+      render();
+    });
+  });
+
+  const tMin = document.getElementById('time-min');
+  const tMax = document.getElementById('time-max');
+  tMin.addEventListener('change', () => { state.timeMin = tMin.value; render(); });
+  tMax.addEventListener('change', () => { state.timeMax = tMax.value; render(); });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    state.sort = 'date';
+    state.date = '';
+    state.timeMin = '';
+    state.timeMax = '';
+    state.entry = '';
+    state.venues.clear();
+    render();
+  });
+
+  // ---- Map ----
+  const map = L.map('map', {zoomControl:false}).setView([-37.775, 144.985], 13);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  const dnIcon = L.divIcon({
+    className:'',
+    html:'<div class="dn-marker"></div>',
+    iconSize:[10,10],
+    iconAnchor:[5,5],
+    popupAnchor:[0,-10],
+  });
+  let markers = [];
+  const markerByVenue = new Map();
+
+  // ---- Render ----
+  function render(){
+    syncUrl();
+
+    // chip active states
+    dateChips.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.date === state.date);
+    });
+    venueChips.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', state.venues.has(b.dataset.venue));
+    });
+    document.querySelectorAll('[data-entry]').forEach(b => {
+      b.classList.toggle('active', b.dataset.entry === state.entry);
+    });
+    document.querySelectorAll('[data-sort]').forEach(b => {
+      b.classList.toggle('active', b.dataset.sort === state.sort);
+    });
+    tMin.value = state.timeMin;
+    tMax.value = state.timeMax;
+
+    const filtered = filterGigs();
+    const sorted = sortGigs(filtered);
+    countEl.textContent = sorted.length === 1 ? '1 gig' : sorted.length + ' gigs';
+
+    listEl.innerHTML = '';
+    if (!sorted.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No gigs match these filters.';
+      listEl.appendChild(e);
+    } else if (state.sort === 'date') {
+      let lastDate = null;
+      for (const g of sorted) {
+        if (g.date !== lastDate) {
+          lastDate = g.date;
+          const div = document.createElement('div');
+          div.className = 'day-divider';
+          const playlistUrl = (GIGS.find(x => x.date === g.date) || {}).playlist_url;
+          div.innerHTML = `<span>${escapeHtml(fmtDate(g.date))}</span>` +
+            (playlistUrl ? `<a class="playlist-link" href="${escapeHtml(playlistUrl)}" target="_blank" rel="noopener">Playlist</a>` : '');
+          listEl.appendChild(div);
+        }
+        listEl.appendChild(buildGigEl(g));
+      }
+    } else {
+      // sort=venue: group by venue
+      let lastVenue = null;
+      for (const g of sorted) {
+        if (g.venue !== lastVenue) {
+          lastVenue = g.venue;
+          const div = document.createElement('div');
+          div.className = 'day-divider';
+          div.innerHTML = `<span>${escapeHtml(g.venue)}</span>`;
+          listEl.appendChild(div);
+        }
+        listEl.appendChild(buildGigEl(g));
+      }
+    }
+
+    // Markers — group filtered gigs by venue (lat,lng) and one marker each
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    markerByVenue.clear();
+    const byVenue = new Map();
+    for (const g of sorted) {
+      if (g.lat == null || g.lng == null) continue;
+      if (!byVenue.has(g.venue)) byVenue.set(g.venue, []);
+      byVenue.get(g.venue).push(g);
+    }
+    byVenue.forEach((venueGigs, vname) => {
+      const v = venueGigs[0];
+      const m = L.marker([v.lat, v.lng], {icon: dnIcon}).addTo(map)
+        .bindPopup(buildVenuePopup(venueGigs));
+      markers.push(m);
+      markerByVenue.set(vname, m);
+    });
+  }
+
+  function buildGigEl(g){
+    const el = document.createElement('div');
+    el.className = 'gig';
+    el.dataset.venue = g.venue;
+    el.dataset.gigId = g.date + '|' + g.venue + '|' + g.title;
+
+    const meta = [];
+    meta.push(venueHtml(g));
+    if (state.sort === 'venue') {
+      meta.push(fmtShortDate(g.date));
+    }
+    if (g.time) meta.push(escapeHtml(g.time));
+    if (g.is_free) meta.push('Free');
+    else if (g.price_str) meta.push(escapeHtml(g.price_str));
+
+    const noCoords = (g.lat == null || g.lng == null)
+      ? '<span class="no-coords">no map</span>' : '';
+
+    el.innerHTML =
+      `<div class="gig-title">${escapeHtml(g.title)}${noCoords}</div>` +
+      `<div class="gig-meta">${meta.join(' &middot; ')}</div>` +
+      lineupHtml(g.lineup) +
+      (g.ticket_url
+        ? `<div class="view-event"><a href="${escapeHtml(g.ticket_url)}" target="_blank" rel="noopener">View event &rarr;</a></div>`
+        : '');
+
+    el.addEventListener('click', (e) => {
+      // Don't hijack clicks on links inside the row
+      if (e.target.closest('a')) return;
+      if (g.lat == null || g.lng == null) return;
+      map.flyTo([g.lat, g.lng], 16, {duration: 0.6});
+      const m = markerByVenue.get(g.venue);
+      if (m) setTimeout(() => m.openPopup(), 600);
+      document.querySelectorAll('.gig.is-active').forEach(x => x.classList.remove('is-active'));
+      el.classList.add('is-active');
+    });
+
+    return el;
+  }
+
+  render();
+})();
+
+</script>
+</body>
+</html>
