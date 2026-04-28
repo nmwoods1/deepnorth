@@ -304,7 +304,7 @@
           body: JSON.stringify({ email }),
         });
         if (res.ok) {
-          msg.textContent = "you're in. see you monday.";
+          msg.textContent = "you're in. this week's digest is on its way.";
           e.target.reset();
         } else {
           msg.textContent = "something went wrong — try again.";
