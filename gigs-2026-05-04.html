@@ -151,6 +151,10 @@ main{flex:1 1 auto;min-height:0;position:relative;display:flex;}
   width:10px;height:10px;background:#867A65;
   border:2px solid #D9D8CF;border-radius:50%;box-shadow:0 0 0 1px #867A65;
 }
+.dn-me-marker{
+  width:14px;height:14px;background:#1a73e8;
+  border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #1a73e8;
+}
 
 .site-footer{
   border-top:1px solid #867A65;padding:14px 20px;font-size:10px;
@@ -522,6 +526,29 @@ const GIGS = [{"date": "2026-05-04", "time": "18:00", "title": "Sunflower Jam", 
   });
   let markers = [];
   const markerByVenue = new Map();
+
+  // Best-effort: ask the browser for the user's location once on load.
+  // Silent on denial / unsupported / timeout — page behaves normally either way.
+  if (navigator.geolocation) {
+    const meIcon = L.divIcon({
+      className:'',
+      html:'<div class="dn-me-marker"></div>',
+      iconSize:[14,14],
+      iconAnchor:[7,7],
+    });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        L.circle([lat, lng], {
+          radius: accuracy, color: '#1a73e8',
+          weight: 1, fillOpacity: 0.08,
+        }).addTo(map);
+        L.marker([lat, lng], {icon: meIcon}).addTo(map);
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  }
 
   // ---- Render ----
   function render(){
