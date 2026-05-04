@@ -156,6 +156,43 @@ main{flex:1 1 auto;min-height:0;position:relative;display:flex;}
   border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #1a73e8;
 }
 
+/* Locate-me dialog floats over the map. Lives inside .map-pane so its
+   visibility follows the map-pane's display state on mobile (hidden in list
+   view, shown in map view) without any JS branching. */
+.locate-dialog{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:500;
+  background:#D9D8CF;border:1px solid #867A65;
+  padding:18px 18px 14px;width:min(300px, calc(100% - 32px));
+  box-shadow:0 4px 20px rgba(0,0,0,0.12);
+  display:none;
+}
+.locate-dialog.is-open{display:block;}
+.locate-dialog-title{
+  font-size:13px;letter-spacing:0.06em;text-transform:uppercase;
+  margin-bottom:8px;
+}
+.locate-dialog-body{
+  font-size:12px;line-height:1.5;margin-bottom:14px;opacity:0.85;
+}
+.locate-dialog-actions{display:flex;gap:8px;}
+.locate-dialog-actions .chip{flex:1 1 auto;justify-content:center;}
+
+/* Bottom-right "Locate me" button. Stacks above Leaflet's zoom control,
+   which sits at bottom:10/right:10 with ~58px of stack height. */
+.locate-btn{
+  position:absolute;bottom:90px;right:10px;
+  z-index:450;
+  width:34px;height:34px;
+  background:#D9D8CF;border:1px solid #867A65;color:#867A65;
+  display:none;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 1px 4px rgba(0,0,0,0.12);
+  padding:0;
+}
+.locate-btn.is-visible{display:flex;}
+.locate-btn:hover{background:#867A65;color:#D9D8CF;}
+.locate-btn svg{width:18px;height:18px;}
+
 .site-footer{
   border-top:1px solid #867A65;padding:14px 20px;font-size:10px;
   letter-spacing:0.10em;text-transform:uppercase;opacity:0.5;
@@ -249,7 +286,26 @@ main{flex:1 1 auto;min-height:0;position:relative;display:flex;}
 </section>
 <main id="main" class="view-list">
   <div class="list-pane" id="list"></div>
-  <div class="map-pane"><div id="map"></div></div>
+  <div class="map-pane">
+    <div id="map"></div>
+    <div class="locate-dialog" id="locate-dialog" role="dialog" aria-labelledby="locate-title">
+      <div class="locate-dialog-title" id="locate-title">Show your location?</div>
+      <div class="locate-dialog-body">
+        See where you are on the map relative to the venues.
+        Stays in your browser — never stored or transmitted.
+      </div>
+      <div class="locate-dialog-actions">
+        <button class="chip" id="locate-share" type="button">Share location</button>
+        <button class="chip" id="locate-dismiss" type="button">Dismiss</button>
+      </div>
+    </div>
+    <button class="locate-btn" id="locate-btn" type="button" aria-label="Show my location" title="Show my location">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+    </button>
+  </div>
 </main>
 <footer class="site-footer">the very good inner north gig guide</footer>
 <script>
@@ -527,28 +583,69 @@ const GIGS = [{"date": "2026-05-04", "time": "18:00", "title": "Sunflower Jam", 
   let markers = [];
   const markerByVenue = new Map();
 
-  // Best-effort: ask the browser for the user's location once on load.
-  // Silent on denial / unsupported / timeout — page behaves normally either way.
-  if (navigator.geolocation) {
-    const meIcon = L.divIcon({
-      className:'',
-      html:'<div class="dn-me-marker"></div>',
-      iconSize:[14,14],
-      iconAnchor:[7,7],
-    });
+  // ---- Locate me ----
+  // Three states: dialog (first visit), button (dismissed or denied), or
+  // silent (already granted). User-marker layers are added directly to the
+  // map so they survive render()'s venue-marker rebuild on filter changes.
+  const meIcon = L.divIcon({
+    className:'',
+    html:'<div class="dn-me-marker"></div>',
+    iconSize:[14,14],
+    iconAnchor:[7,7],
+  });
+  let userMarker = null;
+  let userAccuracy = null;
+  const dialog = document.getElementById('locate-dialog');
+  const dialogShare = document.getElementById('locate-share');
+  const dialogDismiss = document.getElementById('locate-dismiss');
+  const locateBtn = document.getElementById('locate-btn');
+
+  const showDialog = () => dialog.classList.add('is-open');
+  const hideDialog = () => dialog.classList.remove('is-open');
+  const showButton = () => locateBtn.classList.add('is-visible');
+  const hideButton = () => locateBtn.classList.remove('is-visible');
+
+  function plotUser(pos) {
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    if (userMarker) map.removeLayer(userMarker);
+    if (userAccuracy) map.removeLayer(userAccuracy);
+    userAccuracy = L.circle([lat, lng], {
+      radius: accuracy, color: '#1a73e8',
+      weight: 1, fillOpacity: 0.08,
+    }).addTo(map);
+    userMarker = L.marker([lat, lng], {icon: meIcon}).addTo(map);
+  }
+
+  function requestLocation() {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-        L.circle([lat, lng], {
-          radius: accuracy, color: '#1a73e8',
-          weight: 1, fillOpacity: 0.08,
-        }).addTo(map);
-        L.marker([lat, lng], {icon: meIcon}).addTo(map);
-      },
-      () => {},
+      (pos) => { plotUser(pos); hideDialog(); hideButton(); },
+      ()    => { hideDialog(); showButton(); },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
     );
   }
+
+  dialogShare.addEventListener('click', requestLocation);
+  dialogDismiss.addEventListener('click', () => {
+    localStorage.setItem('dn-locate-dismissed', '1');
+    hideDialog();
+    showButton();
+  });
+  locateBtn.addEventListener('click', requestLocation);
+
+  (async () => {
+    if (!navigator.geolocation) return;
+    const dismissed = localStorage.getItem('dn-locate-dismissed') === '1';
+    let perm = 'prompt';
+    if (navigator.permissions) {
+      try {
+        const r = await navigator.permissions.query({name:'geolocation'});
+        perm = r.state;
+      } catch (_) {}
+    }
+    if (perm === 'granted') { requestLocation(); return; }
+    if (dismissed || perm === 'denied') { showButton(); return; }
+    showDialog();
+  })();
 
   // ---- Render ----
   function render(){
