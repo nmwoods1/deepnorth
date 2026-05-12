@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deep North — Player POC</title>
 <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
-<script src="https://w.soundcloud.com/player/api.js"></script>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   body{
@@ -114,18 +113,17 @@ const TRACKS = [
     pageUrl: 'https://stelladonnelly.bandcamp.com/track/old-man' },
 ];
 
-const MANUAL_PROVIDERS = new Set(['bandcamp']);
+// SoundCloud joins Bandcamp as a manual-play provider. Both have
+// cross-origin iframe autoplay blocked by browser policy with no
+// reliable workaround short of scraping their stream URLs.
+const MANUAL_PROVIDERS = new Set(['bandcamp', 'soundcloud']);
 const isManual = (t) => MANUAL_PROVIDERS.has(t.provider);
 
 // Single queue: automatic tracks first (input order), manual tracks at the end (input order).
 const QUEUE = TRACKS.filter(t => !isManual(t)).concat(TRACKS.filter(isManual));
-const firstScTrack = QUEUE.find(t => t.provider === 'soundcloud');
 
 let i = -1;
 let spotifyController = null;
-let scWidget          = null;
-let scReady           = false;
-let scWarmed          = false;
 const audioEl = document.getElementById('apple-audio');
 const scEl    = document.getElementById('sc-frame');
 const bcEl    = document.getElementById('bc-frame');
@@ -195,39 +193,6 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
   });
 };
 
-// --- SoundCloud --------------------------------------------------------
-// Eagerly initialise the widget at page load so it's READY before the
-// user clicks Start. At Start time, we pre-warm by calling play()/pause()
-// inside the click handler — that consumes the user gesture for the
-// soundcloud.com iframe, which unblocks programmatic .play() later.
-function initSoundCloud(){
-  if (!firstScTrack) return;
-  scEl.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(firstScTrack.url)}` +
-             `&auto_play=false&show_artwork=true&buying=false&sharing=false&download=false`;
-  scWidget = SC.Widget(scEl);
-  scWidget.bind(SC.Widget.Events.READY, () => {
-    scReady = true;
-    scWidget.bind(SC.Widget.Events.FINISH, () => {
-      if (i >= 0 && QUEUE[i] && QUEUE[i].provider === 'soundcloud') playNext();
-    });
-  });
-}
-function preWarmSoundCloud(){
-  // Called synchronously from the Start click handler so the gesture
-  // propagates to the cross-origin iframe.
-  if (!scWidget || scWarmed) return;
-  try {
-    scWidget.setVolume(0);
-    scWidget.play();
-    scWidget.pause();
-    scWarmed = true;
-    // Restore volume shortly after — well before SC's turn in the queue.
-    setTimeout(() => { try { scWidget.setVolume(100); } catch(_){} }, 300);
-  } catch (err) {
-    console.warn('SoundCloud pre-warm failed:', err);
-  }
-}
-
 // --- Apple Music (iTunes preview) --------------------------------------
 audioEl.addEventListener('ended', () => {
   if (i >= 0 && QUEUE[i] && QUEUE[i].provider === 'apple') playNext();
@@ -252,12 +217,13 @@ function jumpTo(idx){
     audioEl.src = t.previewUrl;
     audioEl.play().catch(err => console.warn('Apple play() failed:', err));
   } else if (t.provider === 'soundcloud') {
-    if (!scWidget) return;
-    const doLoad = () => scWidget.load(t.url, { auto_play: true });
-    scReady ? doLoad() : scWidget.bind(SC.Widget.Events.READY, doLoad);
+    // Manual: load the embed without auto_play; the user clicks play in
+    // the iframe and then Next → to advance.
+    scEl.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(t.url)}` +
+               `&auto_play=false&show_artwork=true&buying=false&sharing=false&download=false`;
   } else if (t.provider === 'bandcamp') {
-    // Bandcamp has no JS API on the embed — swap the iframe src and wait
-    // for the user to press play, then Next → to advance.
+    // Manual: no JS API on the Bandcamp embed — swap the iframe src and
+    // wait for the user to press play, then Next → to advance.
     bcEl.src = `https://bandcamp.com/EmbeddedPlayer/album=${t.albumId}` +
                `/size=large/bgcol=ffffff/linkcol=867A65/tracklist=false/artwork=small` +
                `/track=${t.trackId}/transparent=true/`;
@@ -284,8 +250,6 @@ function endOfQueue(){
 // --- Controls ----------------------------------------------------------
 document.getElementById('start').addEventListener('click', () => {
   document.getElementById('skip').disabled = false;
-  // Use this user gesture to unlock SC autoplay before we ever need it.
-  preWarmSoundCloud();
   jumpTo(0);
 });
 document.getElementById('skip').addEventListener('click', () => playNext());
@@ -296,14 +260,11 @@ document.getElementById('reset').addEventListener('click', () => {
   highlight(-1);
   document.getElementById('skip').disabled = true;
   if (spotifyController) spotifyController.pause();
-  if (scWidget && scReady) scWidget.pause();
   audioEl.pause();
+  // SoundCloud + Bandcamp iframes are user-driven; nothing to stop programmatically.
 });
 
-// Init at page load — SC widget must be READY before the Start click
-// fires so its pre-warm play()/pause() runs inside the gesture.
 renderQueue();
-initSoundCloud();
 </script>
 </body>
 </html>
