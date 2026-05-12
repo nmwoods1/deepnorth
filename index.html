@@ -173,7 +173,7 @@
 
     <div class="panel panel-form">
       <div class="form-inner">
-      <p class="tagline">
+      <p class="tagline" id="tagline">
         the very good inner north gig guide
       </p>
       <form id="subscribe-form">
@@ -182,7 +182,7 @@
           <input type="checkbox" required>
           <span>I've read and agree to the <a href="#">privacy policy</a>.</span>
         </label>
-        <button type="submit">Subscribe</button>
+        <button type="submit" id="submit-btn">Join Waitlist</button>
         <p id="subscribe-msg" style="font-size:13px;min-height:1.4em;"></p>
       </form>
       </div>
@@ -288,6 +288,18 @@
 
     const WORKER_URL = "https://deepnorth-subscribe.n-m-woods1.workers.dev";
 
+    const refParam = new URLSearchParams(window.location.search).get("ref") || "";
+    const referrerId = /^\d+$/.test(refParam) ? refParam : null;
+
+    if (referrerId) {
+      document.getElementById("tagline").textContent =
+        "the very good inner north gig guide — you’ve been invited.";
+      document.getElementById("submit-btn").textContent = "Subscribe";
+    } else {
+      document.getElementById("tagline").textContent =
+        "the very good inner north gig guide — currently invite-only. join the waitlist below.";
+    }
+
     document.getElementById("subscribe-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = document.getElementById("subscribe-email").value;
@@ -297,21 +309,26 @@
       btn.disabled = true;
       msg.textContent = "";
 
+      const body = referrerId ? { email, ref: referrerId } : { email };
+
       try {
         const res = await fetch(WORKER_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify(body),
         });
         if (res.ok) {
-          msg.textContent = "you're in. this week's digest is on its way.";
+          const data = await res.json().catch(() => ({}));
+          msg.textContent = data.mode === "subscribed"
+            ? "you’re in. this week’s digest is on its way."
+            : "you’re on the waitlist.";
           e.target.reset();
         } else {
           msg.textContent = "something went wrong — try again.";
           btn.disabled = false;
         }
       } catch {
-        msg.textContent = "couldn't reach the server — try again.";
+        msg.textContent = "couldn’t reach the server — try again.";
         btn.disabled = false;
       }
     });
