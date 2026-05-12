@@ -33,13 +33,25 @@
   #now-playing .title{font-size:16px;margin-top:4px;color:#3a3328;}
   #now-playing .hint{font-size:11px;margin-top:6px;opacity:0.75;font-style:italic;display:none;}
   #now-playing.manual .hint{display:block;}
-  #stage{min-height:170px;margin-bottom:24px;}
+  #stage{min-height:170px;margin-bottom:8px;}
   #stage > *{display:none;width:100%;}
   #stage > .visible{display:block;}
   #spotify-host{height:170px;}
   #apple-audio{width:100%;height:50px;margin-top:60px;}
   #sc-frame{width:100%;height:170px;border:0;}
   #bc-frame{width:100%;height:170px;border:0;}
+  #sp-scrubber{margin:6px 0 24px;}
+  #sp-scrubber[hidden]{display:none;}
+  .scrub-bar{
+    height:6px;background:rgba(135,122,101,0.22);cursor:pointer;
+    position:relative;border-radius:3px;
+  }
+  .scrub-fill{height:100%;background:#867A65;width:0;border-radius:3px;transition:width 0.2s linear;}
+  .scrub-time{
+    display:flex;justify-content:space-between;
+    font-size:10px;letter-spacing:0.08em;margin-top:4px;opacity:0.7;
+    font-variant-numeric:tabular-nums;
+  }
   .queue{margin-top:8px;}
   .queue h2{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.6;margin:18px 0 6px;}
   .queue ol{list-style:none;margin:0;padding:0;}
@@ -62,9 +74,10 @@
 <div class="sub">Multi-provider autoplay test · Spotify · Apple · SoundCloud · Bandcamp</div>
 
 <div class="row">
-  <button id="start" class="chip">▶ Start playlist</button>
-  <button id="skip"  class="chip" disabled>Next →</button>
-  <button id="reset" class="chip">Reset</button>
+  <button id="back"      class="chip" disabled>← Back</button>
+  <button id="playpause" class="chip">▶ Start playlist</button>
+  <button id="skip"      class="chip" disabled>Next →</button>
+  <button id="reset"     class="chip">Reset</button>
 </div>
 
 <div id="now-playing">
@@ -78,6 +91,14 @@
   <audio id="apple-audio" controls preload="none"></audio>
   <iframe id="sc-frame" allow="autoplay"></iframe>
   <iframe id="bc-frame"></iframe>
+</div>
+
+<div id="sp-scrubber" hidden>
+  <div class="scrub-bar"><div class="scrub-fill"></div></div>
+  <div class="scrub-time">
+    <span class="cur">0:00</span>
+    <span class="total">0:00</span>
+  </div>
 </div>
 
 <div class="queue">
@@ -123,16 +144,79 @@ const isManual = (t) => MANUAL_PROVIDERS.has(t.provider);
 const QUEUE = TRACKS.filter(t => !isManual(t)).concat(TRACKS.filter(isManual));
 
 let i = -1;
-let spotifyController = null;
+let spotifyController     = null;
+let spotifyPaused         = true;
+let currentSpotifyDuration = 0;
 const audioEl = document.getElementById('apple-audio');
 const scEl    = document.getElementById('sc-frame');
 const bcEl    = document.getElementById('bc-frame');
 const spEl    = document.getElementById('spotify-host');
 const npTitle = document.getElementById('np-title');
 const npRow   = document.getElementById('now-playing');
+const backBtn      = document.getElementById('back');
+const playpauseBtn = document.getElementById('playpause');
+const skipBtn      = document.getElementById('skip');
+const scrubberEl   = document.getElementById('sp-scrubber');
+const scrubBar     = scrubberEl.querySelector('.scrub-bar');
+const scrubFill    = scrubberEl.querySelector('.scrub-fill');
+const scrubCur     = scrubberEl.querySelector('.cur');
+const scrubTotal   = scrubberEl.querySelector('.total');
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function formatTime(ms){
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+// --- Scrubber (Spotify only) -------------------------------------------
+function updateScrubber(positionMs, durationMs){
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+  currentSpotifyDuration = durationMs;
+  const pct = Math.min(100, Math.max(0, (positionMs / durationMs) * 100));
+  scrubFill.style.width = pct + '%';
+  scrubCur.textContent   = formatTime(positionMs);
+  scrubTotal.textContent = formatTime(durationMs);
+}
+function resetScrubber(){
+  currentSpotifyDuration = 0;
+  scrubFill.style.width  = '0%';
+  scrubCur.textContent   = '0:00';
+  scrubTotal.textContent = '0:00';
+}
+function showScrubber(show){
+  scrubberEl.hidden = !show;
+  if (!show) resetScrubber();
+}
+scrubBar.addEventListener('click', (e) => {
+  if (!spotifyController || currentSpotifyDuration <= 0) return;
+  if (QUEUE[i] && QUEUE[i].provider !== 'spotify') return;
+  const rect  = scrubBar.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  spotifyController.seek(ratio * currentSpotifyDuration);
+});
+
+// --- Button state ------------------------------------------------------
+function isQueueIdle(){ return i < 0 || i >= QUEUE.length; }
+function updateBackButton(){
+  backBtn.disabled = i <= 0 || i > QUEUE.length;
+}
+function updatePlayPauseButton(){
+  if (isQueueIdle()) {
+    playpauseBtn.disabled    = false;
+    playpauseBtn.textContent = (i >= QUEUE.length) ? '▶ Restart' : '▶ Start playlist';
+    return;
+  }
+  const t = QUEUE[i];
+  if (t.provider === 'spotify') {
+    playpauseBtn.disabled    = false;
+    playpauseBtn.textContent = spotifyPaused ? '▶ Play' : '⏸ Pause';
+  } else {
+    playpauseBtn.disabled    = true;
+    playpauseBtn.textContent = '▶ Play';
+  }
 }
 
 // --- Render unified queue list -----------------------------------------
@@ -183,6 +267,11 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
     controller.addListener('playback_update', (e) => {
       const d = e && e.data;
       if (!d) return;
+      spotifyPaused = !!d.isPaused;
+      if (QUEUE[i] && QUEUE[i].provider === 'spotify') {
+        updateScrubber(d.position, d.duration);
+        updatePlayPauseButton();
+      }
       const ended = d.isPaused && d.duration > 0 && d.position >= d.duration - 500;
       const now = Date.now();
       if (ended && now - lastEnded > 2000) {
@@ -208,11 +297,20 @@ function jumpTo(idx){
   highlight(i);
   setNowPlaying(t);
   showStageFor(t.provider);
+  showScrubber(t.provider === 'spotify');
+  updateBackButton();
+  updatePlayPauseButton();
+
+  // Pause anything still running from the previous track.
+  if (t.provider !== 'apple')   audioEl.pause();
+  if (t.provider !== 'spotify' && spotifyController) spotifyController.pause();
 
   if (t.provider === 'spotify') {
     if (!spotifyController) return;
+    spotifyPaused = false;
     spotifyController.loadUri(`spotify:track:${t.id}`);
     spotifyController.play();
+    updatePlayPauseButton();
   } else if (t.provider === 'apple') {
     audioEl.src = t.previewUrl;
     audioEl.play().catch(err => console.warn('Apple play() failed:', err));
@@ -244,27 +342,44 @@ function endOfQueue(){
   hideStage();
   setNowPlaying(null);
   highlight(-1);
-  document.getElementById('skip').disabled = true;
+  showScrubber(false);
+  skipBtn.disabled = true;
+  updateBackButton();
+  updatePlayPauseButton();
 }
 
 // --- Controls ----------------------------------------------------------
-document.getElementById('start').addEventListener('click', () => {
-  document.getElementById('skip').disabled = false;
-  jumpTo(0);
+playpauseBtn.addEventListener('click', () => {
+  if (isQueueIdle()) {
+    skipBtn.disabled = false;
+    return jumpTo(0);
+  }
+  if (QUEUE[i] && QUEUE[i].provider === 'spotify' && spotifyController) {
+    spotifyController.togglePlay();
+  }
 });
-document.getElementById('skip').addEventListener('click', () => playNext());
+backBtn.addEventListener('click', () => {
+  if (i > 0) jumpTo(i - 1);
+});
+skipBtn.addEventListener('click', () => playNext());
 document.getElementById('reset').addEventListener('click', () => {
   i = -1;
   hideStage();
   setNowPlaying(null);
   highlight(-1);
-  document.getElementById('skip').disabled = true;
+  showScrubber(false);
+  skipBtn.disabled = true;
   if (spotifyController) spotifyController.pause();
   audioEl.pause();
+  spotifyPaused = true;
+  updateBackButton();
+  updatePlayPauseButton();
   // SoundCloud + Bandcamp iframes are user-driven; nothing to stop programmatically.
 });
 
 renderQueue();
+updateBackButton();
+updatePlayPauseButton();
 </script>
 </body>
 </html>
