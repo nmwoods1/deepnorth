@@ -33,9 +33,19 @@
   #now-playing .title{font-size:16px;margin-top:4px;color:#3a3328;}
   #now-playing .hint{font-size:11px;margin-top:6px;opacity:0.75;font-style:italic;display:none;}
   #now-playing.manual .hint{display:block;}
-  #stage{min-height:170px;margin-bottom:8px;}
-  #stage > *{display:none;width:100%;}
-  #stage > .visible{display:block;}
+  #stage{position:relative;min-height:170px;margin-bottom:8px;}
+  /* Keep all stage children in the DOM and active — Spotify especially
+     can refuse to play audio if its iframe was created in a display:none
+     context. Hide inactive ones via visibility/opacity + position:absolute
+     so they don't take layout space. */
+  #stage > *{
+    display:block;width:100%;
+    position:absolute;top:0;left:0;
+    visibility:hidden;opacity:0;pointer-events:none;
+  }
+  #stage > .visible{
+    position:static;visibility:visible;opacity:1;pointer-events:auto;
+  }
   #spotify-host{height:170px;}
   #apple-audio{width:100%;height:50px;margin-top:60px;}
   #sc-frame{width:100%;height:170px;border:0;}
@@ -144,9 +154,11 @@ const isManual = (t) => MANUAL_PROVIDERS.has(t.provider);
 const QUEUE = TRACKS.filter(t => !isManual(t)).concat(TRACKS.filter(isManual));
 
 let i = -1;
-let spotifyController     = null;
-let spotifyPaused         = true;
+let spotifyController      = null;
+let spotifyPaused          = true;
 let currentSpotifyDuration = 0;
+let currentSpotifyUri      = '';   // last URI we asked the controller to load
+let spotifyPosSeen         = 0;    // max position observed for current track
 const audioEl = document.getElementById('apple-audio');
 const scEl    = document.getElementById('sc-frame');
 const bcEl    = document.getElementById('bc-frame');
@@ -255,14 +267,23 @@ function hideStage(){
 }
 
 // --- Spotify -----------------------------------------------------------
+// Make the spotify-host visible during controller creation so the
+// iframe is born in an "active" rendering context (autoplay works on
+// active iframes; some browsers refuse audio for iframes created
+// inside display:none ancestors). We hide it again immediately after.
 window.onSpotifyIframeApiReady = (IFrameAPI) => {
   const firstSp = QUEUE.find(t => t.provider === 'spotify');
+  const initialUri = `spotify:track:${firstSp ? firstSp.id : ''}`;
+  currentSpotifyUri = initialUri;
+  spEl.classList.add('visible');
   IFrameAPI.createController(spEl, {
     width: '100%',
     height: 170,
-    uri: `spotify:track:${firstSp ? firstSp.id : ''}`
+    uri: initialUri
   }, (controller) => {
     spotifyController = controller;
+    // Defer the un-visible so the iframe has a tick of layout.
+    requestAnimationFrame(() => spEl.classList.remove('visible'));
     let lastEnded = 0;
     controller.addListener('playback_update', (e) => {
       const d = e && e.data;
@@ -271,8 +292,16 @@ window.onSpotifyIframeApiReady = (IFrameAPI) => {
       if (QUEUE[i] && QUEUE[i].provider === 'spotify') {
         updateScrubber(d.position, d.duration);
         updatePlayPauseButton();
+        if (d.position > spotifyPosSeen) spotifyPosSeen = d.position;
       }
-      const ended = d.isPaused && d.duration > 0 && d.position >= d.duration - 500;
+      // Track-end heuristic: paused near duration AND we've actually
+      // observed the track playing (position > 5s). The second clause
+      // guards against initial-load events that briefly report a
+      // duration with position 0 from a prior load.
+      const ended = d.isPaused
+                    && d.duration > 5000
+                    && d.position >= d.duration - 500
+                    && spotifyPosSeen > 5000;
       const now = Date.now();
       if (ended && now - lastEnded > 2000) {
         lastEnded = now;
@@ -307,9 +336,19 @@ function jumpTo(idx){
 
   if (t.provider === 'spotify') {
     if (!spotifyController) return;
+    const uri = `spotify:track:${t.id}`;
+    // Skip loadUri when the URI is already loaded — calling it
+    // redundantly resets the player and seems to confuse play().
+    if (uri !== currentSpotifyUri) {
+      spotifyController.loadUri(uri);
+      currentSpotifyUri = uri;
+    }
     spotifyPaused = false;
-    spotifyController.loadUri(`spotify:track:${t.id}`);
-    spotifyController.play();
+    spotifyPosSeen = 0;
+    // togglePlay from a freshly-loaded paused state is the documented-
+    // working pattern; play() has been unreliable since the iFrame API
+    // changed in 2024.
+    spotifyController.togglePlay();
     updatePlayPauseButton();
   } else if (t.provider === 'apple') {
     audioEl.src = t.previewUrl;
