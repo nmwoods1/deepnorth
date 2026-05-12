@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep North — Player POC</title>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script src="https://w.soundcloud.com/player/api.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:#D9D8CF;color:#867A65;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    padding:24px 20px 200px;max-width:760px;margin:0 auto;line-height:1.5;
+  }
+  a{color:#1a0dab;}
+  h1{font-size:14px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;}
+  .sub{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;margin-bottom:24px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    border:1px solid #867A65;color:#867A65;background:transparent;
+    padding:8px 14px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;
+    cursor:pointer;font-family:inherit;
+  }
+  .chip:hover,.chip:focus{background:#867A65;color:#D9D8CF;outline:none;}
+  .chip[disabled]{opacity:0.4;cursor:not-allowed;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px;}
+  #now-playing{
+    border-top:1px solid #867A65;border-bottom:1px solid #867A65;
+    padding:14px 0;margin:20px 0;
+    font-size:12px;letter-spacing:0.06em;
+  }
+  #now-playing .label{text-transform:uppercase;opacity:0.6;font-size:10px;letter-spacing:0.1em;}
+  #now-playing .title{font-size:16px;margin-top:4px;color:#3a3328;}
+  #stage{min-height:170px;margin-bottom:24px;}
+  #stage > *{display:none;width:100%;}
+  #stage > .visible{display:block;}
+  #spotify-host{height:170px;}
+  #apple-audio{width:100%;height:50px;margin-top:60px;}
+  #sc-frame{width:100%;height:170px;border:0;}
+  .queue{margin-top:8px;}
+  .queue h2{font-size:11px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.6;margin:18px 0 6px;}
+  .queue ol{list-style:none;margin:0;padding:0;}
+  .queue li{
+    padding:8px 10px;border-bottom:1px solid #c8c6bd;
+    font-size:13px;display:flex;justify-content:space-between;gap:8px;cursor:pointer;
+  }
+  .queue li:hover{background:rgba(135,122,101,0.08);}
+  .queue li.playing{background:#867A65;color:#D9D8CF;}
+  .queue li.playing .meta{color:#D9D8CF;}
+  .queue li .meta{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;}
+  .queue li.done{opacity:0.45;}
+  #bandcamp-cluster{margin-top:24px;}
+  #bandcamp-cluster h2{font-size:13px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;}
+  #bandcamp-cluster p{font-size:12px;margin-bottom:14px;}
+  #bandcamp-cluster iframe{width:100%;height:120px;border:0;margin-bottom:10px;display:block;}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid #867A65;font-size:11px;opacity:0.7;}
+</style>
+</head>
+<body>
+
+<h1>Deep North — Player POC</h1>
+<div class="sub">Multi-provider autoplay test · Spotify · Apple · SoundCloud · Bandcamp</div>
+
+<div class="row">
+  <button id="start" class="chip">▶ Start playlist</button>
+  <button id="skip"  class="chip" disabled>Skip →</button>
+  <button id="reset" class="chip">Reset</button>
+</div>
+
+<div id="now-playing">
+  <div class="label">Now playing</div>
+  <div class="title" id="np-title">(press Start)</div>
+</div>
+
+<div id="stage">
+  <div id="spotify-host"></div>
+  <audio id="apple-audio" controls preload="none"></audio>
+  <iframe id="sc-frame" allow="autoplay"></iframe>
+</div>
+
+<div class="queue">
+  <h2>Auto-queue</h2>
+  <ol id="auto-list"></ol>
+  <h2>Bandcamp cluster — manual play</h2>
+  <ol id="bc-list"></ol>
+</div>
+
+<div id="bandcamp-cluster" hidden>
+  <h2>Bandcamp picks</h2>
+  <p>Bandcamp embeds can't be programmatically advanced, so they're grouped here. Click play on each.</p>
+</div>
+
+<footer>
+  Hardwired POC. No DB, no pipeline. See <code>docs/player-poc-plan.md</code>.
+</footer>
+
+<script>
+const TRACKS = [
+  { provider: 'spotify',    artist: 'Courtney Barnett',                 title: 'Avant Gardener',                id: '6G81HxmxdXLsTgFjg5Lv9Y' },
+  { provider: 'spotify',    artist: 'Camp Cope',                        title: 'The Opener',                    id: '05Zhbzb55vYUTjybA9yd2E' },
+  { provider: 'spotify',    artist: 'Rolling Blackouts Coastal Fever',  title: 'French Press',                  id: '5jn29LE4vLfnk8FRpzj2IY' },
+  { provider: 'apple',      artist: 'Courtney Barnett',                 title: 'Avant Gardener',
+    previewUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/d4/79/f9/d479f99e-8a75-fdd2-05ce-ea0a5043889d/mzaf_18435528622093669060.plus.aac.p.m4a' },
+  { provider: 'apple',      artist: 'Tame Impala',                      title: 'Let It Happen',
+    previewUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview116/v4/8d/60/fb/8d60fb3b-208b-70db-f712-801034be3130/mzaf_14872027621360090334.plus.aac.p.m4a' },
+  { provider: 'soundcloud', artist: 'Flume',                            title: 'Never Be Like You (feat. Kai)',
+    url: 'https://soundcloud.com/flume/never-be-like-you-feat-kai' },
+  { provider: 'soundcloud', artist: "Cosmo's Midnight",                 title: 'Walk With Me (feat. KUČKA)',
+    url: 'https://soundcloud.com/cosmosmidnight/walk-with-me' },
+  { provider: 'bandcamp',   artist: 'Tropical Fuck Storm',              title: 'Paradise',
+    albumId: '1047897368', trackId: '2336685497',
+    pageUrl: 'https://tropicalfstorm.bandcamp.com/track/paradise' },
+  { provider: 'bandcamp',   artist: 'RVG',                              title: 'Alexandra',
+    albumId: '4014742847', trackId: '1418476048',
+    pageUrl: 'https://rvgband.bandcamp.com/track/alexandra' },
+  { provider: 'bandcamp',   artist: 'Stella Donnelly',                  title: 'Old Man',
+    albumId: '1078144981', trackId: '1501885663',
+    pageUrl: 'https://stelladonnelly.bandcamp.com/track/old-man' },
+];
+
+const autoQueue       = TRACKS.filter(t => t.provider !== 'bandcamp');
+const bandcampCluster = TRACKS.filter(t => t.provider === 'bandcamp');
+
+let i = -1;
+let spotifyController = null;
+let scWidget          = null;
+let scReady           = false;
+let scInitialised     = false;
+const audioEl = document.getElementById('apple-audio');
+const scEl    = document.getElementById('sc-frame');
+const spEl    = document.getElementById('spotify-host');
+const npTitle = document.getElementById('np-title');
+
+// --- Render queue lists -------------------------------------------------
+function renderQueueLists(){
+  const autoList = document.getElementById('auto-list');
+  autoList.innerHTML = '';
+  autoQueue.forEach((t, idx) => {
+    const li = document.createElement('li');
+    li.dataset.idx = idx;
+    li.innerHTML = `<span>${escapeHtml(t.artist)} — ${escapeHtml(t.title)}</span>` +
+                   `<span class="meta">${t.provider}</span>`;
+    li.addEventListener('click', () => jumpTo(idx));
+    autoList.appendChild(li);
+  });
+  const bcList = document.getElementById('bc-list');
+  bcList.innerHTML = '';
+  bandcampCluster.forEach((t) => {
+    const li = document.createElement('li');
+    li.style.cursor = 'default';
+    li.innerHTML = `<span>${escapeHtml(t.artist)} — ${escapeHtml(t.title)}</span>` +
+                   `<span class="meta">${t.provider}</span>`;
+    bcList.appendChild(li);
+  });
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function highlight(idx){
+  document.querySelectorAll('#auto-list li').forEach((li, k) => {
+    li.classList.toggle('playing', k === idx);
+    li.classList.toggle('done',    k <  idx);
+  });
+}
+
+// --- Stage swap ---------------------------------------------------------
+function showStageFor(provider){
+  spEl.classList.toggle('visible',     provider === 'spotify');
+  audioEl.classList.toggle('visible',  provider === 'apple');
+  scEl.classList.toggle('visible',     provider === 'soundcloud');
+}
+function hideStage(){
+  spEl.classList.remove('visible');
+  audioEl.classList.remove('visible');
+  scEl.classList.remove('visible');
+}
+
+// --- Spotify ------------------------------------------------------------
+window.onSpotifyIframeApiReady = (IFrameAPI) => {
+  IFrameAPI.createController(spEl, {
+    width: '100%',
+    height: 170,
+    uri: `spotify:track:${autoQueue.find(t => t.provider === 'spotify').id}`
+  }, (controller) => {
+    spotifyController = controller;
+    let lastEnded = 0;
+    controller.addListener('playback_update', (e) => {
+      const d = e && e.data;
+      if (!d) return;
+      // Track-end heuristic: duration is in ms; we count an "end" when
+      // we've ticked past the end and the player is paused (Spotify
+      // pauses after the preview ends). Throttle so the same end event
+      // doesn't fire playNext multiple times.
+      const ended = d.isPaused && d.duration > 0 && d.position >= d.duration - 500;
+      const now = Date.now();
+      if (ended && now - lastEnded > 2000) {
+        lastEnded = now;
+        if (i >= 0 && autoQueue[i] && autoQueue[i].provider === 'spotify') playNext();
+      }
+    });
+  });
+};
+
+// --- SoundCloud ---------------------------------------------------------
+function initSoundCloud(firstTrackUrl){
+  // SoundCloud Widget requires the iframe to already have an SC player
+  // page in its src. We assign src once, then use .load() to swap tracks.
+  scEl.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(firstTrackUrl)}&auto_play=true&show_artwork=true&buying=false&sharing=false&download=false`;
+  scWidget = SC.Widget(scEl);
+  scWidget.bind(SC.Widget.Events.READY, () => {
+    scReady = true;
+    scWidget.bind(SC.Widget.Events.FINISH, () => {
+      if (i >= 0 && autoQueue[i] && autoQueue[i].provider === 'soundcloud') playNext();
+    });
+  });
+  scInitialised = true;
+}
+
+// --- Apple Music (iTunes preview) ---------------------------------------
+audioEl.addEventListener('ended', () => {
+  if (i >= 0 && autoQueue[i] && autoQueue[i].provider === 'apple') playNext();
+});
+
+// --- Queue control ------------------------------------------------------
+function playNext(){ jumpTo(i + 1); }
+
+function jumpTo(idx){
+  i = idx;
+  if (i >= autoQueue.length) return showBandcampCluster();
+  const t = autoQueue[i];
+  highlight(i);
+  setNowPlaying(t);
+  showStageFor(t.provider);
+
+  if (t.provider === 'spotify') {
+    if (!spotifyController) return;          // not ready yet — drop the click
+    spotifyController.loadUri(`spotify:track:${t.id}`);
+    spotifyController.play();
+  } else if (t.provider === 'apple') {
+    audioEl.src = t.previewUrl;
+    audioEl.play().catch(err => console.warn('Apple play() failed:', err));
+  } else if (t.provider === 'soundcloud') {
+    if (!scInitialised) {
+      initSoundCloud(t.url);
+    } else {
+      // .load() requires READY to have fired.
+      const doLoad = () => scWidget.load(t.url, { auto_play: true });
+      scReady ? doLoad() : scWidget.bind(SC.Widget.Events.READY, doLoad);
+    }
+  }
+}
+
+function setNowPlaying(t){
+  npTitle.textContent = t ? `${t.artist} — ${t.title}  (${t.provider})` : '(playlist complete)';
+}
+
+function showBandcampCluster(){
+  hideStage();
+  setNowPlaying(null);
+  highlight(-1);
+  const host = document.getElementById('bandcamp-cluster');
+  host.hidden = false;
+  if (!host.dataset.populated) {
+    for (const t of bandcampCluster) {
+      const f = document.createElement('iframe');
+      f.src = `https://bandcamp.com/EmbeddedPlayer/album=${t.albumId}/size=large/bgcol=ffffff/linkcol=867A65/tracklist=false/artwork=small/track=${t.trackId}/transparent=true/`;
+      f.setAttribute('seamless', '');
+      host.appendChild(f);
+      const cap = document.createElement('p');
+      cap.style.fontSize = '11px';
+      cap.style.opacity = '0.7';
+      cap.style.marginTop = '-6px';
+      cap.innerHTML = `<a href="${t.pageUrl}" target="_blank" rel="noopener">${escapeHtml(t.artist)} — ${escapeHtml(t.title)} on Bandcamp</a>`;
+      host.appendChild(cap);
+    }
+    host.dataset.populated = '1';
+  }
+  host.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// --- Controls -----------------------------------------------------------
+document.getElementById('start').addEventListener('click', () => {
+  document.getElementById('skip').disabled = false;
+  document.getElementById('bandcamp-cluster').hidden = true;
+  jumpTo(0);
+});
+document.getElementById('skip').addEventListener('click', () => playNext());
+document.getElementById('reset').addEventListener('click', () => {
+  i = -1;
+  hideStage();
+  setNowPlaying(null);
+  highlight(-1);
+  document.getElementById('skip').disabled = true;
+  if (spotifyController) spotifyController.pause();
+  if (scWidget && scReady) scWidget.pause();
+  audioEl.pause();
+});
+
+renderQueueLists();
+</script>
+</body>
+</html>
