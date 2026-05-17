@@ -649,10 +649,10 @@ main{
         </summary>
         <div class="dropdown-menu">
           <div class="dropdown-option" data-radius="">Off</div>
+          <div class="dropdown-option" data-radius="1">Within 1 km</div>
           <div class="dropdown-option" data-radius="2">Within 2 km</div>
           <div class="dropdown-option" data-radius="5">Within 5 km</div>
           <div class="dropdown-option" data-radius="10">Within 10 km</div>
-          <div class="dropdown-option" data-radius="20">Within 20 km</div>
         </div>
       </details>
       <details class="dropdown" id="time-dropdown">
@@ -821,7 +821,7 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
     venues: new Set((params.get('venues') || '').split(',').filter(Boolean)),
     radiusKm: (() => {
       const r = parseInt(params.get('radius'), 10);
-      return [2,5,10,20].includes(r) ? r : null;
+      return [1,2,5,10].includes(r) ? r : null;
     })(),
     view: ['map','list','player'].includes(params.get('view')) ? params.get('view') : 'list',
     shortlist: loadShortlist(),
