@@ -436,6 +436,14 @@ main{
   /* Filter bar: single scrollable row */
   .controls{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:8px 12px;}
   .controls::-webkit-scrollbar{display:none;}
+  /* Dropdown menus inside the scrollable filter row would otherwise be
+     clipped by .controls' overflow box (overflow-x:auto implies the y axis
+     becomes non-visible too). Float them as fixed-position drawers under
+     the bar; JS sets `top` from each chip's bounding rect on toggle. */
+  .controls .dropdown-menu{
+    position:fixed; left:8px; right:8px; max-width:none;
+    z-index:250;
+  }
   .filter-label{
     display:flex;align-items:center;white-space:nowrap;
     font-size:10px;letter-spacing:0.1em;text-transform:uppercase;opacity:0.65;
@@ -1114,6 +1122,21 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
     document.querySelectorAll('details.dropdown[open]').forEach(d => {
       if (!d.contains(e.target)) d.removeAttribute('open');
     });
+  });
+
+  // Mobile: dropdown menus are position:fixed (see CSS). Position the top
+  // under the tapped chip on each open so the menu floats above the gig
+  // list, map, and player bar.
+  const mobileMQ = window.matchMedia('(max-width:980px)');
+  const positionMobileDropdown = (d) => {
+    if (!d.open || !mobileMQ.matches) return;
+    const summary = d.querySelector('summary');
+    const menu = d.querySelector('.dropdown-menu');
+    if (!summary || !menu) return;
+    menu.style.top = (summary.getBoundingClientRect().bottom + 4) + 'px';
+  };
+  document.querySelectorAll('.controls details.dropdown').forEach(d => {
+    d.addEventListener('toggle', () => positionMobileDropdown(d));
   });
 
   const resetFiltersBtn = document.getElementById('reset-filters');
