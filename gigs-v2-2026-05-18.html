@@ -166,6 +166,9 @@ main{
 }
 .list-pane{padding:0 20px 48px;min-width:0;}
 
+/* Venue sheet is mobile-only; the mobile media query re-shows it when opened. */
+.venue-sheet{display:none;}
+
 /* Player sheet: right column, below filter bar — desktop grid position */
 .player-sheet{
   grid-column:3;grid-row:3;
@@ -308,12 +311,21 @@ main{
 .np-row .np-title{font-size:14px;margin-top:3px;color:#3a3328;}
 .np-row .np-hint{font-size:10px;margin-top:4px;opacity:0.75;font-style:italic;display:none;}
 .np-row.manual .np-hint{display:block;}
+.np-row .np-out-of-view{font-size:10px;margin-top:4px;opacity:0.7;font-style:italic;display:none;color:#6b6353;}
+.np-row.out-of-view .np-out-of-view{display:block;}
 .playing-at{
-  font-size:11px;margin-top:6px;padding-top:6px;
-  border-top:1px solid rgba(134,122,101,0.2);cursor:pointer;
+  font-size:11px;margin-top:6px;padding:6px 0 0;
+  border-top:1px solid rgba(134,122,101,0.2);
+  display:flex;gap:10px;align-items:flex-start;
+  border-radius:4px;transition:background .1s;
 }
+.playing-at:hover{background:rgba(134,122,101,0.08);margin:6px -6px 0;padding:6px 6px 6px;}
+.pa-info{flex:1 1 auto;min-width:0;}
 .playing-at .pa-label{opacity:0.55;letter-spacing:0.08em;text-transform:uppercase;font-size:9px;}
-.playing-at .pa-title{display:block;color:#3a3328;font-size:12px;margin-top:2px;}
+.playing-at .pa-title{display:block;color:#3a3328;font-size:13px;margin-top:2px;line-height:1.3;}
+.playing-at .pa-meta{font-size:11px;opacity:0.70;margin-top:3px;line-height:1.4;}
+.playing-at .pa-meta a{color:inherit;text-decoration:underline;}
+.playing-at .pa-ticket{font-size:11px;margin-top:4px;letter-spacing:0.04em;}
 #stage{position:relative;min-height:170px;margin-bottom:6px;}
 #stage > *{
   display:block;width:100%;
@@ -557,6 +569,7 @@ main{
           <div class="dropdown-option" data-entry="ticketed">Ticketed</div>
         </div>
       </details>
+      <button class="chip" id="reset-filters" type="button" style="display:none;">&#x2715; Reset</button>
       <span class="spacer"></span>
       <div class="control-group view-toggle">
         <button class="chip" data-view="map">Map</button>
@@ -599,6 +612,7 @@ main{
         <div class="np-title" id="np-title">(press Start)</div>
         <div class="np-hint">Manual track — press play in the embed below, then Next → when done.</div>
         <div class="playing-at" id="playing-at" style="display:none;"></div>
+        <div class="np-out-of-view">Gig not in current filter — Next plays the top of the filtered playlist.</div>
       </div>
       <div id="stage">
         <div id="spotify-host"></div>
@@ -706,8 +720,10 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
   };
 
   const filterGigs = () => {
+    if (state.shortlistOnly) {
+      return GIGS.filter(g => state.shortlist.has(g.id));
+    }
     return GIGS.filter(g => {
-      if (state.shortlistOnly && !state.shortlist.has(g.id)) return false;
       if (state.date && g.date !== state.date) return false;
       if (state.venue && g.venue !== state.venue) return false;
       if (state.times.size) {
@@ -912,6 +928,15 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
     });
   });
 
+  const resetFiltersBtn = document.getElementById('reset-filters');
+  function hasActiveFilters(){
+    return !!(state.date || state.times.size || state.entry || state.venue);
+  }
+  resetFiltersBtn.addEventListener('click', () => {
+    state.date = ''; state.times.clear(); state.entry = ''; state.venue = '';
+    render();
+  });
+
   document.querySelectorAll('[data-view]').forEach(b => {
     b.addEventListener('click', () => { state.view = b.dataset.view; hideVenueSheet(); render(); });
   });
@@ -1062,6 +1087,7 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
 
   let QUEUE = [];
   let i = -1;
+  let currentTrack = null;
   let spotifyController = null;
   let spotifyPaused = true;
   let currentSpotifyDuration = 0;
@@ -1119,8 +1145,24 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
   });
 
   function isQueueIdle(){ return i < 0 || i >= QUEUE.length; }
-  function updateBackButton(){ backBtn.disabled = i <= 0 || i > QUEUE.length; }
+  function isOutOfView(){ return currentTrack && i < 0; }
+  function updateBackButton(){
+    if (!QUEUE.length) { backBtn.disabled = true; return; }
+    if (isOutOfView()) { backBtn.disabled = false; return; }
+    backBtn.disabled = i <= 0 || i > QUEUE.length;
+  }
   function updatePlayPauseButton(){
+    // Out-of-view: a track is loaded in the player but not in the filtered queue.
+    if (isOutOfView()) {
+      if (currentTrack.provider === 'spotify') {
+        playpauseBtn.disabled = false;
+        playpauseBtn.textContent = spotifyPaused ? '▶ Play' : '⏸ Pause';
+      } else {
+        playpauseBtn.disabled = true;
+        playpauseBtn.textContent = '▶ Play';
+      }
+      return;
+    }
     if (isQueueIdle()) {
       playpauseBtn.disabled = QUEUE.length === 0;
       playpauseBtn.textContent = (i >= QUEUE.length && QUEUE.length) ? '▶ Restart' : '▶ Start playlist';
@@ -1186,7 +1228,7 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
         const d = e && e.data;
         if (!d) return;
         spotifyPaused = !!d.isPaused;
-        if (QUEUE[i] && QUEUE[i].provider === 'spotify') {
+        if (currentTrack && currentTrack.provider === 'spotify') {
           updateScrubber(d.position, d.duration);
           updatePlayPauseButton();
           if (d.position > spotifyPosSeen) spotifyPosSeen = d.position;
@@ -1197,35 +1239,79 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
         const now = Date.now();
         if (ended && now - lastEnded > 2000) {
           lastEnded = now;
-          if (i >= 0 && QUEUE[i] && QUEUE[i].provider === 'spotify') playNext();
+          if (currentTrack && currentTrack.provider === 'spotify') playNext();
         }
       });
     });
   };
 
   audioEl.addEventListener('ended', () => {
-    if (i >= 0 && QUEUE[i] && QUEUE[i].provider === 'apple') playNext();
+    if (currentTrack && currentTrack.provider === 'apple') playNext();
   });
 
   function setPlayingAt(t){
+    npPlayingAt.innerHTML = '';
     if (!t) { npPlayingAt.style.display = 'none'; return; }
     const g = gigById.get(t.gigId);
     if (!g) { npPlayingAt.style.display = 'none'; return; }
-    npPlayingAt.style.display = 'block';
-    npPlayingAt.dataset.gigId = g.id;
-    npPlayingAt.innerHTML =
-      `<span class="pa-label">Playing at</span>` +
-      `<span class="pa-title">${escapeHtml(g.title)} — ${escapeHtml(g.venue)}, ${escapeHtml(fmtShortDate(g.date))}${g.time ? ' ' + escapeHtml(g.time) : ''}</span>`;
+    npPlayingAt.style.display = 'flex';
+    npPlayingAt.dataset.gigId = String(g.id);
+
+    const info = document.createElement('div');
+    info.className = 'pa-info';
+    const metaParts = [escapeHtml(g.venue)];
+    if (g.time) metaParts.push(escapeHtml(g.time));
+    if (g.is_free) metaParts.push('Free');
+    else if (g.price_str) metaParts.push(escapeHtml(g.price_str));
+    info.innerHTML =
+      `<div class="pa-label">Playing at</div>` +
+      `<div class="pa-title">${escapeHtml(g.title)}</div>` +
+      `<div class="pa-meta">${metaParts.join(' &middot; ')} &middot; ${escapeHtml(fmtShortDate(g.date))}</div>` +
+      (g.ticket_url
+        ? `<div class="pa-ticket"><a href="${escapeHtml(g.ticket_url)}" target="_blank" rel="noopener">View event &rarr;</a></div>`
+        : '');
+    npPlayingAt.appendChild(info);
+
+    const heart = document.createElement('button');
+    heart.type = 'button';
+    heart.className = 'heart-btn';
+    heart.setAttribute('aria-label', 'Toggle shortlist');
+    const setHeart = () => {
+      const on = state.shortlist.has(g.id);
+      heart.textContent = on ? '♥' : '♡';
+      heart.classList.toggle('is-on', on);
+    };
+    setHeart();
+    heart.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.shortlist.has(g.id)) state.shortlist.delete(g.id);
+      else state.shortlist.add(g.id);
+      saveShortlist();
+      // Rebuild playing-at to sync the heart state, then sync the gig list.
+      setPlayingAt(currentTrack);
+      if (state.shortlistOnly) render();
+      else updatePlayerQueueFromFilter();
+    });
+    npPlayingAt.appendChild(heart);
   }
-  npPlayingAt.addEventListener('click', () => {
+
+  npPlayingAt.addEventListener('mouseenter', () => {
     const id = npPlayingAt.dataset.gigId;
     if (!id) return;
     const row = document.querySelector(`.gig[data-gig-id="${id}"]`);
     if (row) {
-      row.scrollIntoView({behavior:'smooth', block:'center'});
       document.querySelectorAll('.gig.is-active').forEach(x => x.classList.remove('is-active'));
       row.classList.add('is-active');
     }
+    const g = gigById.get(id) || gigById.get(Number(id));
+    if (g) highlightVenue(g.venue);
+  });
+  npPlayingAt.addEventListener('mouseleave', () => {
+    const id = npPlayingAt.dataset.gigId;
+    if (!id) return;
+    const row = document.querySelector(`.gig[data-gig-id="${id}"]`);
+    if (row) row.classList.remove('is-active');
+    clearVenueHighlight();
   });
 
   function setNowPlaying(t){
@@ -1234,21 +1320,28 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
       npTitle.textContent = idle;
       playerTabTxt.textContent = 'Player';
       npRow.classList.remove('manual');
+      npRow.classList.remove('out-of-view');
       setPlayingAt(null);
       return;
     }
     npTitle.textContent = `${t.artist}  (${t.provider})`;
     playerTabTxt.textContent = `▶ ${t.artist} — ${t.title}`;
     npRow.classList.toggle('manual', isManual(t));
+    npRow.classList.toggle('out-of-view', isOutOfView());
     setPlayingAt(t);
   }
 
-  function playNext(){ jumpTo(i + 1); }
+  function playNext(){
+    if (!QUEUE.length) return;
+    if (i < 0) return jumpTo(0);
+    return jumpTo(i + 1);
+  }
 
   function jumpTo(idx){
     i = idx;
     if (i >= QUEUE.length) return endOfQueue();
     const t = QUEUE[i];
+    currentTrack = t;
     highlight(i);
     setNowPlaying(t);
     showStageFor(t.provider);
@@ -1280,6 +1373,7 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
   }
 
   function endOfQueue(){
+    currentTrack = null;
     hideStage();
     setNowPlaying(null);
     highlight(-1);
@@ -1299,52 +1393,42 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
       spotifyController.togglePlay();
     }
   });
-  backBtn.addEventListener('click', () => { if (i > 0) jumpTo(i - 1); });
+  backBtn.addEventListener('click', () => {
+    if (!QUEUE.length) return;
+    if (i < 0) return jumpTo(QUEUE.length - 1);
+    if (i > 0) jumpTo(i - 1);
+  });
   skipBtn.addEventListener('click', () => playNext());
   document.getElementById('reset-player').addEventListener('click', () => {
-    i = -1; hideStage(); setNowPlaying(null); highlight(-1);
+    i = -1; currentTrack = null;
+    hideStage(); setNowPlaying(null); highlight(-1);
     showScrubber(false); skipBtn.disabled = true;
     if (spotifyController) spotifyController.pause();
     audioEl.pause(); spotifyPaused = true;
     updateBackButton(); updatePlayPauseButton();
   });
 
-  // Re-queue when filter changes: keep current track if still visible,
-  // otherwise advance to the next still-visible track (or stop).
+  // Re-queue when filter changes: update the visible playlist but never
+  // interrupt the player. If the currently-playing track is no longer in
+  // the filtered queue, it keeps playing — Next/Prev jump into the new
+  // queue, and the now-playing row shows an "out of view" hint.
   function requeue(newQueue){
-    const wasIdle = isQueueIdle();
-    const currentTrack = wasIdle ? null : QUEUE[i];
     QUEUE = newQueue;
-    if (wasIdle) {
-      i = -1;
-      renderQueue();
-      updatePlayPauseButton();
-      updateBackButton();
-      if (!QUEUE.length) endOfQueue();
-      return;
-    }
-    // Re-locate the currently-playing track in the new queue.
+    // Re-locate currentTrack in the new queue (identity matches today's check).
     const newIdx = currentTrack ? QUEUE.findIndex(
       t => t.provider === currentTrack.provider &&
            t.gigId === currentTrack.gigId &&
            (t.id === currentTrack.id || t.url === currentTrack.url || t.pageUrl === currentTrack.pageUrl)
     ) : -1;
-    if (newIdx >= 0) {
-      i = newIdx;
-      renderQueue();
-      highlight(i);
-      updatePlayPauseButton();
-      updateBackButton();
-    } else {
-      // Current track is no longer visible — stop and reset.
-      i = -1;
-      if (spotifyController) spotifyController.pause();
-      audioEl.pause();
-      hideStage(); showScrubber(false); setNowPlaying(null);
-      renderQueue();
-      skipBtn.disabled = QUEUE.length === 0;
-      updatePlayPauseButton(); updateBackButton();
-    }
+    i = newIdx;
+    renderQueue();
+    highlight(i);
+    // Refresh now-playing so the out-of-view hint toggles correctly.
+    if (currentTrack) setNowPlaying(currentTrack);
+    else if (!QUEUE.length) setNowPlaying(null);
+    skipBtn.disabled = !currentTrack;
+    updatePlayPauseButton();
+    updateBackButton();
   }
 
   // ====================================================================
@@ -1440,6 +1524,7 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
   function render(){
     syncUrl();
     dateDropdown.sync(); venueDropdown.sync(); timeDropdown.sync(); entryDropdown.sync();
+    resetFiltersBtn.style.display = hasActiveFilters() ? '' : 'none';
 
     document.querySelectorAll('[data-view]').forEach(b => {
       b.classList.toggle('active', b.dataset.view === state.view);
@@ -1498,7 +1583,9 @@ const TRACKS = [{"artist": "Sunflower Jam", "title": "Top track", "gigId": "66f7
         m = L.marker([v.lat, v.lng], {icon:dnIconMobile})
              .on('click', () => showVenueSheet(venueGigs));
       } else {
-        m = L.marker([v.lat, v.lng], {icon:dnIcon, interactive:false});
+        m = L.marker([v.lat, v.lng], {icon:dnIcon})
+             .bindTooltip(vname, {direction:'top', offset:[0,-8], opacity:0.95})
+             .on('click', () => { state.venue = vname; render(); });
       }
       layers.push(m); markers.push(m); markerByVenue.set(vname, m);
     });
