@@ -173,6 +173,7 @@
     (function(){
       var id = new URLSearchParams(location.search).get('dn_id');
       if (id && id !== '{{ contact.ID }}') {
+        try { localStorage.setItem('dn-contact-id', id); } catch (_) {}
         window.posthog && posthog.identify(id);
         window.clarity && clarity('identify', id);
       }
@@ -308,13 +309,22 @@
 
     const WORKER_URL = "https://deepnorth-subscribe.n-m-woods1.workers.dev";
 
-    const refParam = new URLSearchParams(window.location.search).get("ref") || "";
+    const _params = new URLSearchParams(window.location.search);
+    const refParam = _params.get("ref") || "";
+    const viaParam = _params.get("via") || "";
+    // `ref` = explicit invitation (auto-subscribed, welcome digest fires).
+    // `via` = arrived from a shared shortlist (waitlist only, attribution
+    //         tracked as SHARED_BY_CONTACT_ID).
     const referrerId = /^\d+$/.test(refParam) ? refParam : null;
+    const sharedById = /^\d+$/.test(viaParam) ? viaParam : null;
 
     if (referrerId) {
       document.getElementById("tagline").textContent =
         "the very good inner north gig guide — you’ve been invited.";
       document.getElementById("submit-btn").textContent = "Subscribe";
+    } else if (sharedById) {
+      document.getElementById("tagline").textContent =
+        "a friend shared their Deep North shortlist with you — join the waitlist below.";
     } else {
       document.getElementById("tagline").textContent =
         "the very good inner north gig guide — currently invite-only. join the waitlist below.";
@@ -329,7 +339,11 @@
       btn.disabled = true;
       msg.textContent = "";
 
-      const body = referrerId ? { email, ref: referrerId } : { email };
+      // `ref` wins if both present: an explicit invitation should not be
+      // downgraded to a waitlist signup because the link also carried `via`.
+      const body = { email };
+      if (referrerId) body.ref = referrerId;
+      else if (sharedById) body.via = sharedById;
 
       try {
         const res = await fetch(WORKER_URL, {
