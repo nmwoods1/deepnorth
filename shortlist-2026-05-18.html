@@ -203,6 +203,18 @@ main{
 }
 .day-divider:first-child{border-top:none;}
 
+.genre-divider{
+  border-top:1px solid #867A65;padding:20px 20px 14px;margin-top:16px;
+  background:rgba(134,122,101,0.08);
+}
+.genre-divider-title{
+  font-size:12px;letter-spacing:0.10em;text-transform:uppercase;
+}
+.genre-divider-note{
+  font-size:12px;line-height:1.45;opacity:0.7;margin-top:6px;
+}
+.genre-divider + .day-divider{border-top:none;margin-top:0;}
+
 .gig{
   padding:14px 20px;border-bottom:1px solid rgba(134,122,101,0.2);
   display:flex;gap:10px;align-items:flex-start;
@@ -874,15 +886,10 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
       }
       if (state.entry === 'free' && !g.is_free) return false;
       if (state.entry === 'ticketed' && g.is_free) return false;
-      if (state.genres.size) {
-        // Untagged gigs ALWAYS appear regardless of filter state — we lack
-        // genre signal for ~30% of gigs and hiding them would gut the guide.
-        // Filter applies only to gigs that DO carry tags; OR semantics
-        // across the user's selected genres for broader discovery.
-        if (g.vibe_tags && g.vibe_tags.length) {
-          if (!g.vibe_tags.some(t => state.genres.has(t))) return false;
-        }
-      }
+      // Genre is a preference, not a filter: it splits the rendered list
+      // into matches and others at render time rather than hiding gigs.
+      // Coverage is ~70%, and our tags are sometimes wrong — a hard filter
+      // would lose too much.
       if (state.radiusKm && userLat != null && userLng != null) {
         if (g.lat == null || g.lng == null) return false;
         if (haversineKm(userLat, userLng, g.lat, g.lng) > state.radiusKm) return false;
@@ -890,6 +897,9 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
       return true;
     });
   };
+
+  const matchesGenrePref = (g) =>
+    g.vibe_tags && g.vibe_tags.some(t => state.genres.has(t));
 
   const sortGigs = (list) => {
     const out = list.slice();
@@ -1992,6 +2002,19 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
     if (countEl) countEl.textContent = GIGS.length === 1 ? '1 gig' : GIGS.length + ' gigs';
 
     listEl.innerHTML = '';
+    const renderDayGroups = (gigs) => {
+      let lastDate = null;
+      for (const g of gigs) {
+        if (g.date !== lastDate) {
+          lastDate = g.date;
+          const div = document.createElement('div');
+          div.className = 'day-divider';
+          div.innerHTML = `<span>${escapeHtml(fmtDate(g.date))}</span>`;
+          listEl.appendChild(div);
+        }
+        listEl.appendChild(buildGigEl(g));
+      }
+    };
     if (!sorted.length) {
       const e = document.createElement('div');
       if (!IS_FULL) {
@@ -2006,18 +2029,27 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
           : 'No gigs match these filters.';
       }
       listEl.appendChild(e);
-    } else {
-      let lastDate = null;
-      for (const g of sorted) {
-        if (g.date !== lastDate) {
-          lastDate = g.date;
-          const div = document.createElement('div');
-          div.className = 'day-divider';
-          div.innerHTML = `<span>${escapeHtml(fmtDate(g.date))}</span>`;
-          listEl.appendChild(div);
-        }
-        listEl.appendChild(buildGigEl(g));
+    } else if (state.genres.size) {
+      const matches = sorted.filter(matchesGenrePref);
+      const others  = sorted.filter(g => !matchesGenrePref(g));
+      if (matches.length) {
+        renderDayGroups(matches);
+      } else {
+        const e = document.createElement('div');
+        e.className = 'empty';
+        e.textContent = 'No gigs match your genre selection this week.';
+        listEl.appendChild(e);
       }
+      if (others.length) {
+        const sep = document.createElement('div');
+        sep.className = 'genre-divider';
+        sep.innerHTML = `<div class="genre-divider-title">Other gigs this week</div>`
+          + `<div class="genre-divider-note">These don't match your genre selection — but our genre tags are incomplete and sometimes wrong, so they may still be worth a look.</div>`;
+        listEl.appendChild(sep);
+        renderDayGroups(others);
+      }
+    } else {
+      renderDayGroups(sorted);
     }
 
     // Map markers — venue-grouped, fitBounds to filtered set.
