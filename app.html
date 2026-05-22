@@ -51,18 +51,20 @@ function getMelbourneMonday() {
   return d.toISOString().slice(0, 10);
 }
 
-// Staging builds (applicationId ends in .staging) load the staging gig guide;
-// production builds load the live gig guide. Plain-web visitors (no bridge)
-// fall through to production.
+// Staging builds (applicationId ends in .staging) load the React rebuild from
+// its own Cloudflare Worker; production builds load the live gig guide.
+// Plain-web visitors (no bridge) fall through to production.
 async function resolveTargetUrl() {
-  const monday = getMelbourneMonday();
   let staging = false;
   try {
     const info = await window.Capacitor.Plugins.App.getInfo();
     staging = (info.id || '').endsWith('.staging');
   } catch (e) { /* bridge absent (plain web) or plugin error — production */ }
-  const dir = staging ? 'staging/' : '';
-  return 'https://nmwoods1.github.io/deepnorth/' + dir + 'gigs-' + monday + '.html';
+  // The staging React app resolves the current week itself, so the URL
+  // carries no date — unlike the static production gig guide.
+  if (staging) return 'https://deepnorth-app-staging.n-m-woods1.workers.dev/';
+  const monday = getMelbourneMonday();
+  return 'https://nmwoods1.github.io/deepnorth/gigs-' + monday + '.html';
 }
 
 resolveTargetUrl().then(url => window.location.replace(url));
