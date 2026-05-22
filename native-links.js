@@ -13,10 +13,11 @@
 
   if (!window.Capacitor?.isNativePlatform?.()) return;
 
-  const Browser = window.Capacitor.Plugins.Browser;
-  // AppLauncher is only present once the new APK ships; fall back gracefully
-  // if the plugin isn't registered yet.
-  const AppLauncher = window.Capacitor.Plugins.AppLauncher;
+  // The gig guide bundles no Capacitor runtime, so window.Capacitor.Plugins is
+  // undefined inside the native app. Call plugins through the injected native
+  // bridge's low-level transport instead.
+  const nativeCall = (plugin, method, options) =>
+    window.Capacitor.nativePromise(plugin, method, options || {});
 
   // Returns a spotify: URI for track/artist URLs, null for all other paths
   // (playlists, albums, episodes — those fall through to a Custom Tab).
@@ -30,18 +31,18 @@
 
   async function openUrl(url) {
     const spotifyUri = toSpotifyUri(url);
-    if (spotifyUri && AppLauncher) {
+    if (spotifyUri) {
       try {
-        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: "spotify:" });
+        const { value: canOpen } = await nativeCall("AppLauncher", "canOpenUrl", { url: "spotify:" });
         if (canOpen) {
-          await AppLauncher.openUrl({ url: spotifyUri });
+          await nativeCall("AppLauncher", "openUrl", { url: spotifyUri });
           return;
         }
       } catch (_) {
         // AppLauncher unavailable or Spotify scheme query failed — fall through.
       }
     }
-    Browser.open({ url });
+    nativeCall("Browser", "open", { url });
   }
 
   window.DNNativeLinks = { open: openUrl };

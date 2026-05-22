@@ -57,7 +57,10 @@ function getMelbourneMonday() {
 async function resolveTargetUrl() {
   let staging = false;
   try {
-    const info = await window.Capacitor.Plugins.App.getInfo();
+    // This static page bundles no Capacitor runtime, so window.Capacitor.Plugins
+    // is undefined here — call the App plugin through the injected native
+    // bridge's low-level transport instead.
+    const info = await window.Capacitor.nativePromise('App', 'getInfo', {});
     staging = (info.id || '').endsWith('.staging');
   } catch (e) { /* bridge absent (plain web) or plugin error — production */ }
   // The staging React app resolves the current week itself, so the URL

@@ -182,26 +182,31 @@
     async getReturnUrl()    { return location.origin + location.pathname + location.search; },
   };
 
+  // The gig guide bundles no Capacitor runtime, so window.Capacitor.Plugins is
+  // undefined inside the native app. Call plugins through the injected native
+  // bridge's low-level transport instead.
+  const nativeCall = (plugin, method, options) =>
+    window.Capacitor.nativePromise(plugin, method, options || {});
+
   const capHooks = {
     async getSession() {
-      const { Preferences } = window.Capacitor.Plugins;
-      const { value } = await Preferences.get({ key: "dn-auth-token" });
+      const { value } = await nativeCall("Preferences", "get", { key: "dn-auth-token" });
       return value || null;
     },
     async setSession(token) {
-      await window.Capacitor.Plugins.Preferences.set({ key: "dn-auth-token", value: token });
+      await nativeCall("Preferences", "set", { key: "dn-auth-token", value: token });
     },
     async clearSession() {
-      await window.Capacitor.Plugins.Preferences.remove({ key: "dn-auth-token" });
+      await nativeCall("Preferences", "remove", { key: "dn-auth-token" });
     },
     async openBrowser(url) {
-      await window.Capacitor.Plugins.Browser.open({ url });
+      await nativeCall("Browser", "open", { url });
     },
     async getReturnUrl() {
       // Per-variant scheme (matches applicationId) so the staging and
       // production app builds don't both claim the same OAuth deep link.
       try {
-        const info = await window.Capacitor.Plugins.App.getInfo();
+        const info = await nativeCall("App", "getInfo", {});
         return `${info.id}://auth`;
       } catch (e) {
         return "io.github.nmwoods1.deepnorth://auth";
@@ -221,32 +226,37 @@
   }
 
   function setupCapacitorDeepLink() {
-    if (!window.Capacitor?.Plugins?.App) return;
-    window.Capacitor.Plugins.App.addListener("appUrlOpen", (event) => {
+    if (!window.Capacitor?.addListener) return;
+    window.Capacitor.addListener("App", "appUrlOpen", (event) => {
       const match = (event.url || "").match(/dn_session=([^&]+)/);
       if (match) {
-        window.Capacitor.Plugins.Browser?.close().catch(() => {});
+        nativeCall("Browser", "close", {}).catch(() => {});
         core.receiveSession(match[1]);
       }
     });
   }
 
-  // ── Sign-in modal ─────────────────────────────────────────────────────────
+  // ── Sign-in panel + surface registry ──────────────────────────────────────
+  //
+  // The sign-in form lives in a reusable .dn-auth-panel fragment. Call
+  // registerSignInHost(el) to embed it into a host element (the gig-guide
+  // gate, the staging test page, etc.). Pages that don't register a host get
+  // a fallback fixed overlay — functionally identical to the old modal.
 
-  let _modal = null;
+  let _panel = null;
+  let _signInHost = null;
+  let _fallbackOverlay = null;
 
-  function injectModalStyles() {
+  function injectAuthStyles() {
     if (document.getElementById("dn-auth-styles")) return;
     const style = document.createElement("style");
     style.id = "dn-auth-styles";
     style.textContent = `
-      .dn-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);
-        display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
-      .dn-auth-card{background:#1a1a1a;color:#f0f0f0;border-radius:12px;
+      .dn-auth-panel{background:#1a1a1a;color:#f0f0f0;border-radius:12px;
         max-width:360px;width:100%;padding:24px;
         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
-      .dn-auth-card h2{font-size:1.15rem;margin:0 0 4px;font-weight:700;}
-      .dn-auth-card p.dn-auth-sub{font-size:0.85rem;opacity:0.6;margin:0 0 18px;}
+      .dn-auth-panel h2{font-size:1.15rem;margin:0 0 4px;font-weight:700;}
+      .dn-auth-panel p.dn-auth-sub{font-size:0.85rem;opacity:0.6;margin:0 0 18px;}
       .dn-auth-btn{display:flex;align-items:center;justify-content:center;gap:8px;
         width:100%;padding:11px 14px;margin-bottom:9px;border-radius:8px;
         border:1px solid #3a3a3a;background:#262626;color:#f0f0f0;
@@ -269,20 +279,22 @@
       .dn-auth-status{font-size:0.82rem;min-height:1.1em;margin:6px 0 0;}
       .dn-auth-status.dn-err{color:#ff8a6a;}
       .dn-auth-status.dn-ok{color:#7ad17a;}
-      .dn-auth-close{position:absolute;top:14px;right:16px;background:none;
+      .dn-auth-fallback{position:fixed;inset:0;background:rgba(0,0,0,0.6);
+        display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+      .dn-auth-fallback .dn-auth-panel{position:relative;}
+      .dn-auth-fallback .dn-auth-close{position:absolute;top:14px;right:16px;background:none;
         border:none;color:#f0f0f0;font-size:1.3rem;cursor:pointer;opacity:0.5;}
-      .dn-auth-card{position:relative;}
     `;
     document.head.appendChild(style);
   }
 
-  function buildModal() {
-    injectModalStyles();
-    const overlay = document.createElement("div");
-    overlay.className = "dn-auth-overlay";
-    overlay.innerHTML = `
-      <div class="dn-auth-card" role="dialog" aria-modal="true" aria-label="Sign in">
-        <button class="dn-auth-close" aria-label="Close">&times;</button>
+  function buildAuthPanel() {
+    injectAuthStyles();
+    const panel = document.createElement("div");
+    panel.className = "dn-auth-panel";
+    panel.setAttribute("role", "region");
+    panel.setAttribute("aria-label", "Sign in");
+    panel.innerHTML = `
         <h2>Sign in to Deep North</h2>
         <p class="dn-auth-sub">Sync your shortlist across devices.</p>
         <button class="dn-auth-btn" data-dn-provider="google">Continue with Google</button>
@@ -297,29 +309,25 @@
           <button class="dn-auth-btn" data-dn-register>Create account</button>
         </div>
         <button class="dn-auth-link" data-dn-magic>Email me a link instead</button>
-        <p class="dn-auth-status" role="status"></p>
-      </div>`;
+        <p class="dn-auth-status" role="status"></p>`;
 
-    const status = overlay.querySelector(".dn-auth-status");
-    const emailInput = overlay.querySelector("[data-dn-email]");
-    const passwordInput = overlay.querySelector("[data-dn-password]");
+    const status = panel.querySelector(".dn-auth-status");
+    const emailInput = panel.querySelector("[data-dn-email]");
+    const passwordInput = panel.querySelector("[data-dn-password]");
     const setStatus = (msg, kind) => {
       status.textContent = msg || "";
       status.className = "dn-auth-status" + (kind ? " dn-" + kind : "");
     };
     const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
-    overlay.querySelector(".dn-auth-close").addEventListener("click", closeModal);
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
-
-    overlay.querySelectorAll("[data-dn-provider]").forEach((btn) => {
+    panel.querySelectorAll("[data-dn-provider]").forEach((btn) => {
       btn.addEventListener("click", () => {
         setStatus("Redirecting…");
         core.startLogin(btn.dataset.dnProvider);
       });
     });
 
-    overlay.querySelector("[data-dn-login]").addEventListener("click", async (e) => {
+    panel.querySelector("[data-dn-login]").addEventListener("click", async (e) => {
       const email = (emailInput.value || "").trim();
       const password = passwordInput.value || "";
       if (!validEmail(email) || !password) {
@@ -330,11 +338,11 @@
       setStatus("Signing in…");
       const res = await core.passwordLogin(email, password);
       e.target.disabled = false;
-      if (res.ok) closeModal();
-      else setStatus(res.error, "err");
+      if (!res.ok) setStatus(res.error, "err");
+      // success: dn:auth-ready fires and closeSignIn() hides the surface
     });
 
-    overlay.querySelector("[data-dn-register]").addEventListener("click", async (e) => {
+    panel.querySelector("[data-dn-register]").addEventListener("click", async (e) => {
       const email = (emailInput.value || "").trim();
       const password = passwordInput.value || "";
       if (!validEmail(email)) { setStatus("Enter a valid email address.", "err"); return; }
@@ -350,7 +358,7 @@
       else setStatus(res.error, "err");
     });
 
-    overlay.querySelector("[data-dn-magic]").addEventListener("click", async (e) => {
+    panel.querySelector("[data-dn-magic]").addEventListener("click", async (e) => {
       const email = (emailInput.value || "").trim();
       if (!validEmail(email)) { setStatus("Enter a valid email address.", "err"); return; }
       e.target.disabled = true;
@@ -362,21 +370,63 @@
     });
 
     passwordInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") overlay.querySelector("[data-dn-login]").click();
+      if (e.key === "Enter") panel.querySelector("[data-dn-login]").click();
     });
 
-    return overlay;
+    return panel;
   }
 
-  function openModal() {
-    if (!_modal) _modal = buildModal();
-    if (!_modal.isConnected) document.body.appendChild(_modal);
-    _modal.style.display = "flex";
+  function getPanel() {
+    if (!_panel) _panel = buildAuthPanel();
+    return _panel;
   }
 
-  function closeModal() {
-    if (_modal) _modal.style.display = "none";
+  function registerSignInHost(hostEl) {
+    _signInHost = hostEl;
+    hostEl.appendChild(getPanel());
   }
+
+  function openSignIn() {
+    if (_signInHost) {
+      const gate = _signInHost.closest("#dn-gate");
+      if (gate) {
+        // Gate host: reveal the full-screen gate with the form visible
+        gate.dataset.state = "prompt";
+        document.documentElement.classList.add("dn-gate-open");
+        const closeBtn = document.getElementById("dn-gate-close");
+        if (closeBtn) closeBtn.hidden = false;
+      }
+      // Non-gate host (e.g. staging test page): panel already inline, no-op
+      return;
+    }
+    // No registered host: use a fallback overlay (same UX as the old modal)
+    if (!_fallbackOverlay) {
+      injectAuthStyles();
+      _fallbackOverlay = document.createElement("div");
+      _fallbackOverlay.className = "dn-auth-fallback";
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "dn-auth-close";
+      closeBtn.setAttribute("aria-label", "Close");
+      closeBtn.innerHTML = "&times;";
+      closeBtn.addEventListener("click", closeSignIn);
+      _fallbackOverlay.addEventListener("click", (e) => { if (e.target === _fallbackOverlay) closeSignIn(); });
+      _fallbackOverlay.appendChild(closeBtn);
+      _fallbackOverlay.appendChild(getPanel());
+    }
+    if (!_fallbackOverlay.isConnected) document.body.appendChild(_fallbackOverlay);
+    _fallbackOverlay.style.display = "flex";
+  }
+
+  function closeSignIn() {
+    if (_fallbackOverlay) _fallbackOverlay.style.display = "none";
+    document.documentElement.classList.remove("dn-gate-open");
+  }
+
+  // Close the sign-in surface whenever sign-in completes (covers all paths:
+  // OAuth redirect, magic link, and password login)
+  document.addEventListener("dn:auth-ready", (e) => {
+    if (e.detail && e.detail.user) closeSignIn();
+  });
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -395,12 +445,15 @@
     getUser: () => core.getUser(),
     isReady: () => core.isReady(),
 
-    /** Open the sign-in modal (Google / Spotify / magic link). */
-    signIn: () => openModal(),
-    closeSignIn: () => closeModal(),
+    /** Open the sign-in screen (full-screen gate or fallback overlay). */
+    signIn: () => openSignIn(),
+    closeSignIn: () => closeSignIn(),
     signOut: () => core.signOut(),
 
-    /** Direct provider entry points (the modal uses these). */
+    /** Embed the sign-in panel into hostEl (call before signIn()). */
+    registerSignInHost: (el) => registerSignInHost(el),
+
+    /** Direct provider entry points. */
     signInWithGoogle: () => core.startLogin("google"),
     signInWithSpotify: () => core.startLogin("spotify"),
     requestMagicLink: (email) => core.requestMagicLink(email),
