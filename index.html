@@ -315,7 +315,9 @@
     // `ref` = explicit invitation (auto-subscribed, welcome digest fires).
     // `via` = arrived from a shared shortlist (waitlist only, attribution
     //         tracked as SHARED_BY_CONTACT_ID).
-    const referrerId = /^\d+$/.test(refParam) ? refParam : null;
+    // `ref` carries a 4-digit random prefix in front of the referrer's Brevo
+    // contact ID — strip it to recover the contact ID.
+    const referrerId = /^\d{5,}$/.test(refParam) ? refParam.slice(4) : null;
     const sharedById = /^\d+$/.test(viaParam) ? viaParam : null;
 
     if (referrerId) {
@@ -353,9 +355,13 @@
         });
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
-          msg.textContent = data.mode === "subscribed"
-            ? "you’re in. this week’s digest is on its way."
-            : "you’re on the waitlist.";
+          if (data.mode === "subscribed") {
+            msg.textContent = "you’re in. this week’s digest is on its way.";
+          } else if (data.reason === "cap_reached") {
+            msg.textContent = "the first round is full (200 spots) — you’re on the waitlist and we’ll be in touch.";
+          } else {
+            msg.textContent = "you’re on the waitlist.";
+          }
           e.target.reset();
         } else {
           msg.textContent = "something went wrong — try again.";
