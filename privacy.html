@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — Deep North</title>
+  <meta name="robots" content="index,follow">
+  <style>
+    :root { --bg: #D9D8CF; --ink: #867A65; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px 96px;
+    }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    h2 { font-size: 19px; margin: 36px 0 8px; }
+    h3 { font-size: 16px; margin: 22px 0 6px; }
+    p, li { font-size: 15px; }
+    a { color: var(--ink); }
+    .meta { font-size: 13px; opacity: 0.8; margin: 0 0 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border: 1px solid var(--ink); }
+    th { font-weight: 600; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .back { display: inline-block; margin-top: 32px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Deep North — Privacy Policy</h1>
+    <p class="meta">Last updated: 29 June 2026</p>
+
+    <p>
+      Deep North ("Deep North", "we", "us") is a gig-discovery service for
+      Melbourne's inner north. It is operated as a personal project by Nick
+      Woods, based in Victoria, Australia. This policy explains what personal
+      information the Deep North website, email digest, and mobile apps
+      (Android and iOS) collect, how it is used, and the choices you have. It
+      is written to meet the requirements of the Australian
+      <em>Privacy Act 1988</em> (including the Australian Privacy Principles)
+      and the EU/UK General Data Protection Regulation (GDPR) for any
+      international subscribers.
+    </p>
+    <p>
+      If you have any questions, or want to access or delete your data, contact
+      us at <a href="mailto:n.m.woods1@gmail.com">n.m.woods1@gmail.com</a>.
+    </p>
+
+    <h2>1. What we collect</h2>
+    <table>
+      <thead>
+        <tr><th>Data</th><th>When &amp; why</th><th>Where it's stored</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Email address</td>
+          <td>When you subscribe or create an account, so we can send
+              the weekly digest and identify your account.</td>
+          <td>Turso database; email-list copy in Brevo.</td>
+        </tr>
+        <tr>
+          <td>Display name</td>
+          <td>Supplied by you or by your Spotify/Google profile when you sign
+              in, used to personalise the app.</td>
+          <td>Turso database.</td>
+        </tr>
+        <tr>
+          <td>Sign-in identifiers</td>
+          <td>If you sign in with Spotify or Google, we store the provider's
+              account identifier to recognise you on return visits. We do not
+              receive or store your Spotify/Google password.</td>
+          <td>Turso database.</td>
+        </tr>
+        <tr>
+          <td>Password (if you choose email sign-up)</td>
+          <td>Stored only as a salted, one-way PBKDF2-HMAC-SHA256 hash. We
+              never store or can recover the plaintext password.</td>
+          <td>Turso database.</td>
+        </tr>
+        <tr>
+          <td>Shortlist</td>
+          <td>The gigs you save, so your shortlist syncs across devices and can
+              be shared via a link you generate.</td>
+          <td>Turso database; also cached on your device.</td>
+        </tr>
+        <tr>
+          <td>Approximate / precise location</td>
+          <td><strong>Only if you grant the location permission</strong>, and
+              only to sort or filter gigs by distance from you. Your location
+              is used on-device and is not stored on our servers or shared.</td>
+          <td>On your device only.</td>
+        </tr>
+        <tr>
+          <td>Session token</td>
+          <td>A random token issued after sign-in to keep you logged in (up to
+              90 days). Stored on your device and as a session record on our
+              side.</td>
+          <td>Device storage; Turso database.</td>
+        </tr>
+        <tr>
+          <td>Usage analytics</td>
+          <td>Aggregate, product-improvement analytics about how pages and
+              features are used.</td>
+          <td>PostHog and Microsoft Clarity (see §3).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. How we use it</h2>
+    <ul>
+      <li>To send you the weekly gig digest and run your account.</li>
+      <li>To show, sort, and filter gigs — including by distance if you opt in
+          to location.</li>
+      <li>To sync and share your shortlist across your devices.</li>
+      <li>To keep you signed in securely.</li>
+      <li>To understand, in aggregate, which features are used so we can
+          improve the product.</li>
+    </ul>
+    <p>
+      We do <strong>not</strong> sell your personal information, and we do
+      <strong>not</strong> use it for third-party advertising or cross-app
+      tracking.
+    </p>
+
+    <h2>3. Third-party services</h2>
+    <p>We rely on a small number of processors to run the service:</p>
+    <ul>
+      <li><strong>Brevo</strong> — email delivery and the subscriber list.</li>
+      <li><strong>Turso (libSQL)</strong> — the database holding accounts and
+          shortlists.</li>
+      <li><strong>Cloudflare</strong> — hosting and the application/API
+          backend (Workers).</li>
+      <li><strong>GitHub Pages</strong> — hosting the public web gig guide and
+          this page.</li>
+      <li><strong>Spotify</strong> and <strong>Google</strong> — optional
+          sign-in providers. We request only the scopes needed to identify you
+          and (for Spotify, if you connect it) read your profile and manage
+          playlists you create through Deep North.</li>
+      <li><strong>PostHog</strong> and <strong>Microsoft Clarity</strong> —
+          privacy-conscious product analytics on the web experience.</li>
+      <li><strong>Firebase Cloud Messaging</strong> (mobile apps) — to deliver
+          the optional weekly push notification.</li>
+    </ul>
+    <p>
+      Each processor handles data under its own terms and may store it outside
+      Australia (for example, in the United States or the EU). We share only
+      what each service needs to perform its function.
+    </p>
+
+    <h2>4. Device permissions (mobile apps)</h2>
+    <ul>
+      <li><strong>Location</strong> — optional; used to sort/filter gigs by
+          distance. Denying it leaves all other features working.</li>
+      <li><strong>Notifications</strong> — optional; used for the weekly digest
+          reminder.</li>
+      <li><strong>Network</strong> — required to load gig data.</li>
+    </ul>
+    <p>You can change or revoke these permissions any time in your device
+       settings.</p>
+
+    <h2>5. Data retention</h2>
+    <p>
+      We keep account data while your account is active. Sign-in sessions
+      expire after at most 90 days. Email/magic-link verification tokens expire
+      within 24 hours. If you ask us to delete your account, we remove your
+      account record, identities, shortlist, and sessions, and unsubscribe your
+      email from the list. Aggregate analytics that cannot be tied back to you
+      may be retained.
+    </p>
+
+    <h2>6. Your rights</h2>
+    <p>
+      You can request access to, correction of, or deletion of your personal
+      information, and you can unsubscribe from emails at any time using the
+      link in any digest or by emailing us. Where the GDPR applies, you also
+      have rights to data portability and to object to or restrict certain
+      processing, and you may lodge a complaint with your local supervisory
+      authority. In Australia you may complain to the Office of the Australian
+      Information Commissioner (OAIC).
+    </p>
+    <p>
+      To exercise any of these rights, email
+      <a href="mailto:n.m.woods1@gmail.com">n.m.woods1@gmail.com</a>. We aim to
+      respond within 30 days.
+    </p>
+
+    <h2>7. Children</h2>
+    <p>
+      Deep North is intended for adults attending live music. It is not
+      directed at children under 13 (or under 16 where local law sets a higher
+      age), and we do not knowingly collect their data.
+    </p>
+
+    <h2>8. Security</h2>
+    <p>
+      All traffic uses HTTPS. Passwords are stored only as salted one-way
+      hashes. Access to the production database and backend is restricted.
+      No method of transmission or storage is perfectly secure, but we take
+      reasonable steps to protect your information.
+    </p>
+
+    <h2>9. Changes to this policy</h2>
+    <p>
+      We may update this policy from time to time. Material changes will be
+      reflected by the "Last updated" date above and, where appropriate,
+      announced in the digest.
+    </p>
+
+    <h2>10. Contact</h2>
+    <p>
+      Deep North — Nick Woods, Victoria, Australia.<br>
+      <a href="mailto:n.m.woods1@gmail.com">n.m.woods1@gmail.com</a>
+    </p>
+
+    <a class="back" href="index.html">&larr; Back to Deep North</a>
+  </main>
+</body>
+</html>

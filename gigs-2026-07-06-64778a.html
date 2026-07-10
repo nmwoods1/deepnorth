@@ -785,8 +785,8 @@ html.dn-gate-open .dn-gate{display:flex!important;}
 <main id="main">
   <div class="content-panels">
     <div class="referral-banner" id="referral-banner" hidden>
-      <span class="referral-copy">deep north is currently invite only while it&rsquo;s in testing, limited to 200 ppl. if you know someone who loves gigs, why don&rsquo;t you</span>
-      <button class="referral-btn" id="referral-invite" type="button">Invite them</button>
+      <span class="referral-copy">know someone who loves live music? send them deep north &mdash;</span>
+      <button class="referral-btn" id="referral-invite" type="button">Share it</button>
     </div>
     <div class="list-pane" id="list"></div>
   </div>
@@ -1421,7 +1421,7 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
       // Tag the link with the sharer's Brevo contact ID (captured from the
       // ?dn_id= param in their email-tagged URL and persisted by the
       // analytics IIFE). The shortlist page passes this through to signup as
-      // the SHARED_BY_CONTACT_ID attribution for any waitlist conversions.
+      // the SHARED_BY_CONTACT_ID attribution for any signups it drives.
       let dnId = null;
       try { dnId = localStorage.getItem('dn-contact-id'); } catch (_) {}
       if (dnId && /^\d+$/.test(dnId)) url += '&via=' + encodeURIComponent(dnId);
@@ -1451,7 +1451,7 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
         const url = 'https://nmwoods1.github.io/deepnorth/?ref=' + prefix + cid;
         try {
           await navigator.clipboard.writeText(url);
-          showToast('Invite link copied');
+          showToast('Share link copied');
         } catch (_) {
           window.prompt('Copy this link:', url);
         }
@@ -1465,10 +1465,9 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
     radiusDropdown = noOpSync;
     vibeDropdown = noOpSync;
 
-    // Wire the "Join the waitlist" CTA so the sharer's Brevo contact ID
-    // (passed via ?via= in the share link) propagates to the signup page.
-    // The worker reads it as the SHARED_BY_CONTACT_ID attribute on a
-    // waitlist (list 4) contact — never auto-subscribes.
+    // Wire the "Subscribe" CTA so the sharer's Brevo contact ID (passed via
+    // ?via= in the share link) propagates to the signup page. The worker reads
+    // it as the SHARED_BY_CONTACT_ID attribute on the new subscriber.
     const cta = document.getElementById('signup-cta-link');
     if (cta) {
       const v = params.get('via');
@@ -2261,7 +2260,7 @@ const ICONS = {"play": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" 
         // Shortlist page with an empty/stale share link — speak to a
         // prospect, not to "your filters".
         e.className = 'shortlist-empty';
-        e.textContent = "This shortlist isn't available — the gigs may have already happened. Join the waitlist above for next week's picks.";
+        e.textContent = "This shortlist isn't available — the gigs may have already happened. Subscribe above for next week's picks.";
       } else {
         e.className = 'empty';
         e.textContent = state.shortlistOnly
