@@ -224,9 +224,9 @@
         <input type="email" id="subscribe-email" placeholder="your@email.com" required>
         <label class="checkbox-row">
           <input type="checkbox" required>
-          <span>I've read and agree to the <a href="privacy.html">privacy policy</a>.</span>
+          <span>I've read and agree to the <a href="#">privacy policy</a>.</span>
         </label>
-        <button type="submit" id="submit-btn">Subscribe</button>
+        <button type="submit" id="submit-btn">Join Waitlist</button>
         <p id="subscribe-msg" style="font-size:13px;min-height:1.4em;"></p>
       </form>
       <div id="confirmation" class="confirmation" hidden></div>
@@ -336,9 +336,9 @@
     const _params = new URLSearchParams(window.location.search);
     const refParam = _params.get("ref") || "";
     const viaParam = _params.get("via") || "";
-    // `ref` = explicit invitation; `via` = arrived from a shared shortlist
-    // (tracked as SHARED_BY_CONTACT_ID). Registration is open, so both just
-    // carry attribution now — every signup subscribes.
+    // `ref` = explicit invitation (auto-subscribed, welcome digest fires).
+    // `via` = arrived from a shared shortlist (waitlist only, attribution
+    //         tracked as SHARED_BY_CONTACT_ID).
     // `ref` carries a 4-digit random prefix in front of the referrer's Brevo
     // contact ID — strip it to recover the contact ID.
     const referrerId = /^\d{5,}$/.test(refParam) ? refParam.slice(4) : null;
@@ -347,12 +347,13 @@
     if (referrerId) {
       document.getElementById("tagline").textContent =
         "the very good inner north gig guide — you’ve been invited.";
+      document.getElementById("submit-btn").textContent = "Subscribe";
     } else if (sharedById) {
       document.getElementById("tagline").textContent =
-        "a friend shared their Deep North shortlist with you — subscribe below.";
+        "a friend shared their Deep North shortlist with you — join the waitlist below.";
     } else {
       document.getElementById("tagline").textContent =
-        "the very good inner north gig guide — a weekly email of the best local gigs. subscribe below.";
+        "the very good inner north gig guide — currently invite-only. join the waitlist below.";
     }
 
     const form = document.getElementById("subscribe-form");
@@ -373,8 +374,8 @@
       btn.disabled = true;
       msg.textContent = "";
 
-      // `ref` wins if both present — attribution only; either way the signup
-      // subscribes.
+      // `ref` wins if both present: an explicit invitation should not be
+      // downgraded to a waitlist signup because the link also carried `via`.
       const body = { email };
       if (referrerId) body.ref = referrerId;
       else if (sharedById) body.via = sharedById;
@@ -386,7 +387,14 @@
           body: JSON.stringify(body),
         });
         if (res.ok) {
-          showConfirmation("<strong>you’re in.</strong><br>this week’s digest is on its way.");
+          const data = await res.json().catch(() => ({}));
+          if (data.mode === "subscribed") {
+            showConfirmation("<strong>you’re in.</strong><br>this week’s digest is on its way.");
+          } else if (data.reason === "cap_reached") {
+            showConfirmation("<strong>the first round is full.</strong><br>you’re on the waitlist — we’ll be in touch when a spot opens.");
+          } else {
+            showConfirmation("<strong>you’re on the waitlist.</strong><br>we’ll be in touch when the next round opens.");
+          }
         } else {
           msg.textContent = "something went wrong — try again.";
           btn.disabled = false;
