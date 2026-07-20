@@ -182,26 +182,31 @@
     async getReturnUrl()    { return location.origin + location.pathname + location.search; },
   };
 
+  // The gig guide bundles no Capacitor runtime, so window.Capacitor.Plugins is
+  // undefined inside the native app. Call plugins through the injected native
+  // bridge's low-level transport instead.
+  const nativeCall = (plugin, method, options) =>
+    window.Capacitor.nativePromise(plugin, method, options || {});
+
   const capHooks = {
     async getSession() {
-      const { Preferences } = window.Capacitor.Plugins;
-      const { value } = await Preferences.get({ key: "dn-auth-token" });
+      const { value } = await nativeCall("Preferences", "get", { key: "dn-auth-token" });
       return value || null;
     },
     async setSession(token) {
-      await window.Capacitor.Plugins.Preferences.set({ key: "dn-auth-token", value: token });
+      await nativeCall("Preferences", "set", { key: "dn-auth-token", value: token });
     },
     async clearSession() {
-      await window.Capacitor.Plugins.Preferences.remove({ key: "dn-auth-token" });
+      await nativeCall("Preferences", "remove", { key: "dn-auth-token" });
     },
     async openBrowser(url) {
-      await window.Capacitor.Plugins.Browser.open({ url });
+      await nativeCall("Browser", "open", { url });
     },
     async getReturnUrl() {
       // Per-variant scheme (matches applicationId) so the staging and
       // production app builds don't both claim the same OAuth deep link.
       try {
-        const info = await window.Capacitor.Plugins.App.getInfo();
+        const info = await nativeCall("App", "getInfo", {});
         return `${info.id}://auth`;
       } catch (e) {
         return "io.github.nmwoods1.deepnorth://auth";
@@ -221,11 +226,11 @@
   }
 
   function setupCapacitorDeepLink() {
-    if (!window.Capacitor?.Plugins?.App) return;
-    window.Capacitor.Plugins.App.addListener("appUrlOpen", (event) => {
+    if (!window.Capacitor?.addListener) return;
+    window.Capacitor.addListener("App", "appUrlOpen", (event) => {
       const match = (event.url || "").match(/dn_session=([^&]+)/);
       if (match) {
-        window.Capacitor.Plugins.Browser?.close().catch(() => {});
+        nativeCall("Browser", "close", {}).catch(() => {});
         core.receiveSession(match[1]);
       }
     });
