@@ -274,6 +274,8 @@ main{
 .lineup-chip-source.is-spotify{color:#1DB954;}
 .lineup-chip-source.is-bandcamp{color:#1DA0C3;}
 .lineup-chip-source.is-soundcloud{color:#FF5500;}
+.lineup-chip-source.is-unearthed{width:auto;}
+.lineup-chip-source .unearthed-logo-img{height:11px;width:auto;margin:0;vertical-align:middle;}
 .no-coords{
   font-size:9px;letter-spacing:0.08em;text-transform:uppercase;
   border:1px solid rgba(134,122,101,0.5);padding:1px 6px;margin-left:6px;opacity:0.6;
@@ -383,6 +385,8 @@ main{
 #np-spotify-link:hover,#np-unearthed-link:hover{text-decoration:underline;opacity:1;}
 /* Triple J Unearthed brand mark shown inline in the source links. */
 .unearthed-logo-img{height:1.15em;width:auto;vertical-align:-0.22em;margin-right:4px;}
+/* Provider brand marks (Spotify/Bandcamp/SoundCloud SVGs) in the player links. */
+.brand-mark{vertical-align:-0.12em;margin-right:2px;}
 .player-transport{
   display:flex;justify-content:center;align-items:center;gap:24px;
   margin:14px 0 18px;
@@ -753,10 +757,10 @@ body.dn-shortlist-page .heart-btn{display:none !important;}
       <button class="player-tab-btn" id="player-tab-back" type="button" aria-label="Previous" disabled><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon="skip-back" aria-hidden="true"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/></svg></button>
       <button class="player-tab-btn" id="player-tab-play" type="button" aria-label="Play" data-state="play"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon="play" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>
       <span class="player-tab-text" id="player-tab-text">&mdash;</span>
-      <a class="player-tab-spotify" id="player-tab-spotify-link" href="#" target="_blank" rel="noopener" aria-label="Open in Spotify (full track)" style="display:none;">Spotify &#8599;</a>
+      <a class="player-tab-spotify" id="player-tab-spotify-link" href="#" target="_blank" rel="noopener" aria-label="Open in Spotify (full track)" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" data-icon="spotify" class="brand-mark" aria-hidden="true" style="color:#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg> Spotify &#8599;</a>
       <a class="player-tab-spotify" id="player-tab-unearthed-link" href="#" target="_blank" rel="noopener" aria-label="Open on Triple J Unearthed" style="display:none;"><img class="unearthed-logo-img" alt="" />Unearthed &#8599;</a>
-      <a class="player-tab-bc-link" id="player-tab-bc-link" href="#" target="_blank" rel="noopener" aria-label="Open on Bandcamp" style="display:none;">Bandcamp &#8599;</a>
-      <a class="player-tab-bc-link" id="player-tab-sc-link" href="#" target="_blank" rel="noopener" aria-label="Open on SoundCloud" style="display:none;">SoundCloud &#8599;</a>
+      <a class="player-tab-bc-link" id="player-tab-bc-link" href="#" target="_blank" rel="noopener" aria-label="Open on Bandcamp" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" data-icon="bandcamp" class="brand-mark" aria-hidden="true" style="color:#1DA0C3"><path d="M0 18.75l7.437-13.5H24l-7.438 13.5H0z"/></svg> Bandcamp &#8599;</a>
+      <a class="player-tab-bc-link" id="player-tab-sc-link" href="#" target="_blank" rel="noopener" aria-label="Open on SoundCloud" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" data-icon="soundcloud" class="brand-mark" aria-hidden="true" style="color:#FF5500"><path d="M23.999 14.165c-.052 1.796-1.612 3.169-3.4 3.169h-8.18a.68.68 0 0 1-.675-.683V7.862a.747.747 0 0 1 .452-.724s.75-.513 2.333-.513a5.364 5.364 0 0 1 2.763.755 5.433 5.433 0 0 1 2.57 3.54c.282-.08.574-.121.868-.12.884 0 1.73.358 2.347.992s.948 1.49.922 2.373ZM10.721 8.421c.247 2.98.427 5.697 0 8.672a.264.264 0 0 1-.53 0c-.395-2.946-.22-5.718 0-8.672a.264.264 0 0 1 .53 0ZM9.072 9.448c.285 2.659.37 4.986-.006 7.655a.277.277 0 0 1-.55 0c-.331-2.63-.256-5.02 0-7.655a.277.277 0 0 1 .556 0Zm-1.663-.257c.27 2.726.39 5.171 0 7.904a.266.266 0 0 1-.532 0c-.38-2.69-.257-5.21 0-7.904a.266.266 0 0 1 .532 0Zm-1.647.77a26.108 26.108 0 0 1-.008 7.147.272.272 0 0 1-.542 0 27.955 27.955 0 0 1 0-7.147.275.275 0 0 1 .55 0Zm-1.67 1.769c.421 1.865.228 3.5-.029 5.388a.257.257 0 0 1-.514 0c-.21-1.858-.398-3.549 0-5.389a.272.272 0 0 1 .543 0Zm-1.655-.273c.388 1.897.26 3.508-.01 5.412-.026.28-.514.283-.54 0-.244-1.878-.347-3.54-.01-5.412a.283.283 0 0 1 .56 0Zm-1.668.911c.4 1.268.257 2.292-.026 3.572a.257.257 0 0 1-.514 0c-.241-1.262-.354-2.312-.023-3.572a.283.283 0 0 1 .563 0Z"/></svg> SoundCloud &#8599;</a>
       <div class="player-tab-embed" id="player-tab-embed" hidden></div>
       <button class="player-tab-btn" id="player-tab-next" type="button" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-icon="skip-forward" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg></button>
     </div>
@@ -772,7 +776,7 @@ body.dn-shortlist-page .heart-btn{display:none !important;}
       <div class="section-label section-label--first">Listening to</div>
       <div class="listening-header">
         <div id="np-title">&mdash;</div>
-        <a id="np-spotify-link" href="#" target="_blank" rel="noopener" style="display:none;">View on Spotify &rarr;</a>
+        <a id="np-spotify-link" href="#" target="_blank" rel="noopener" style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" data-icon="spotify" class="brand-mark" aria-hidden="true" style="color:#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg> View on Spotify &rarr;</a>
         <a id="np-unearthed-link" href="#" target="_blank" rel="noopener" style="display:none;"><img class="unearthed-logo-img" alt="" />View on Unearthed &rarr;</a>
       </div>
       <div id="sp-scrubber" hidden>
@@ -1092,10 +1096,16 @@ const UNEARTHED_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCA
     soundcloud: ICONS.soundcloud,
   };
 
-  const sourceBadgeHtml = (source) =>
-    source && SOURCE_SVG[source]
+  const sourceBadgeHtml = (source) => {
+    // Unearthed is a raster brand mark (data URI), not an inline SVG.
+    if (source === 'unearthed' && UNEARTHED_LOGO) {
+      return `<span class="lineup-chip-source is-unearthed" aria-label="unearthed">` +
+             `<img class="unearthed-logo-img" src="${UNEARTHED_LOGO}" alt=""></span>`;
+    }
+    return source && SOURCE_SVG[source]
       ? `<span class="lineup-chip-source is-${source}" aria-label="${source}">${SOURCE_SVG[source]}</span>`
       : '';
+  };
 
   const lineupHtml = (lineup, gigId) => {
     if (!lineup.length) return '<span class="gig-lineup">(artist TBA)</span>';
