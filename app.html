@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>tmo</title>
+<title>Deep North</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -33,7 +33,7 @@
 </style>
 </head>
 <body>
-<div class="logo">tmo</div>
+<div class="logo">Deep North</div>
 <div class="dot"></div>
 <div class="sub">Loading the Melbourne gig guide…</div>
 <script>
@@ -65,7 +65,7 @@ async function resolveTargetUrl() {
   } catch (e) { /* bridge absent (plain web) or plugin error — production */ }
   // The staging React app resolves the current week itself, so the URL
   // carries no date — unlike the static production gig guide.
-  if (staging) return 'https://staging.tmo.cool/';
+  if (staging) return 'https://deepnorth-app-staging.n-m-woods1.workers.dev/';
   const monday = getMelbourneMonday();
   return 'https://nmwoods1.github.io/deepnorth/gigs-' + monday + '.html';
 }

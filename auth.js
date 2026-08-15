@@ -1,5 +1,5 @@
 /**
- * tmo auth module — auth-core + web/Capacitor adapter.
+ * Deep North auth module — auth-core + web/Capacitor adapter.
  *
  * auth-core: pure logic (no DOM, no platform APIs). The OAuth/magic-link
  * flow, the Worker API contract, session handling, and shortlist sync.
@@ -209,7 +209,7 @@
         const info = await nativeCall("App", "getInfo", {});
         return `${info.id}://auth`;
       } catch (e) {
-        return "cool.tmo.app://auth";
+        return "io.github.nmwoods1.deepnorth://auth";
       }
     },
   };
@@ -295,7 +295,7 @@
     panel.setAttribute("role", "region");
     panel.setAttribute("aria-label", "Sign in");
     panel.innerHTML = `
-        <h2>Sign in to tmo</h2>
+        <h2>Sign in to Deep North</h2>
         <p class="dn-auth-sub">Sync your shortlist across devices.</p>
         <button class="dn-auth-btn" data-dn-provider="google">Continue with Google</button>
         <button class="dn-auth-btn" data-dn-provider="spotify">Continue with Spotify</button>
