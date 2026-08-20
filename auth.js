@@ -30,9 +30,40 @@
    *   openBrowser(url)  → void   (open OAuth/verify page)
    *   getReturnUrl()    → string (where the Worker sends the user back)
    */
+  // Outbound ticket clicks are counted by the *app* Worker, which is a
+  // different Worker from the auth/subscribe one above. Both read the same
+  // sessions table, so a token minted here validates there.
+  const APP_WORKER_BASE =
+    window.DEEPNORTH_APP_WORKER_BASE || "https://deepnorth-app.n-m-woods1.workers.dev";
+
+  // Must match the key used by the gig guide's inline dnClientId().
+  function clickClientId() {
+    try {
+      return localStorage.getItem("dn-client-id");
+    } catch (e) {
+      return null;
+    }
+  }
+
   function createAuthCore(hooks) {
     let _user = null;
     let _ready = false;
+
+    // Link this device's anonymous click id to the signed-in user, so
+    // ticket-click reporting can distinguish people from devices. Attribution
+    // is resolved server-side; the session token never enters a click URL.
+    function linkClickIdentity(token) {
+      const id = clickClientId();
+      if (!id) return;
+      fetch(`${APP_WORKER_BASE}/clicks/identify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ client_id: id }),
+      }).catch(() => {});
+    }
 
     function api(path, { method = "GET", body, token } = {}) {
       return fetch(`${WORKER_BASE}${path}`, {
@@ -53,6 +84,7 @@
             const res = await api("/auth/me", { token });
             if (res.ok) {
               _user = await res.json();
+              linkClickIdentity(token);
             } else {
               await hooks.clearSession();
               _user = null;

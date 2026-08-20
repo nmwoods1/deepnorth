@@ -111,6 +111,18 @@
               features are used.</td>
           <td>PostHog and Microsoft Clarity (see §3).</td>
         </tr>
+        <tr>
+          <td>Ticket-link clicks</td>
+          <td>When you tap through to a ticketing site, we record which gig and
+              venue, the time, which of our apps you came from, and a random
+              device identifier — so we can tell venues how much interest we
+              send them. <strong>If you are signed in, these clicks are linked
+              to your account.</strong> We do not know whether you completed a
+              purchase; the ticketing site does not tell us. We add a
+              <code>utm_source=deepnorth</code> tag to the link so the venue can
+              see the referral in their own ticketing dashboard.</td>
+          <td>Turso database.</td>
+        </tr>
       </tbody>
     </table>
 
@@ -171,9 +183,11 @@
       We keep account data while your account is active. Sign-in sessions
       expire after at most 90 days. Email/magic-link verification tokens expire
       within 24 hours. If you ask us to delete your account, we remove your
-      account record, identities, shortlist, and sessions, and unsubscribe your
-      email from the list. Aggregate analytics that cannot be tied back to you
-      may be retained.
+      account record, identities, shortlist, sessions, and the link between your
+      account and your ticket-link clicks, and unsubscribe your email from the
+      list. Ticket-link click records are kept for at most 24 months and are
+      deleted or anonymised after that. Aggregate analytics that cannot be tied
+      back to you may be retained.
     </p>
 
     <h2>6. Your rights</h2>
