@@ -68,15 +68,15 @@
         </tr>
         <tr>
           <td>Display name</td>
-          <td>Supplied by you or by your Spotify/Google profile when you sign
-              in, used to personalise the app.</td>
+          <td>Supplied by you or by your Spotify, Google, or Apple profile when
+              you sign in, used to personalise the app.</td>
           <td>Turso database.</td>
         </tr>
         <tr>
           <td>Sign-in identifiers</td>
-          <td>If you sign in with Spotify or Google, we store the provider's
-              account identifier to recognise you on return visits. We do not
-              receive or store your Spotify/Google password.</td>
+          <td>If you sign in with Spotify, Google, or Apple, we store the
+              provider's account identifier to recognise you on return visits.
+              We do not receive or store your provider password.</td>
           <td>Turso database.</td>
         </tr>
         <tr>
@@ -152,10 +152,11 @@
           backend (Workers).</li>
       <li><strong>GitHub Pages</strong> — hosting the public web gig guide and
           this page.</li>
-      <li><strong>Spotify</strong> and <strong>Google</strong> — optional
-          sign-in providers. We request only the scopes needed to identify you
-          and (for Spotify, if you connect it) read your profile and manage
-          playlists you create through tmo.</li>
+      <li><strong>Spotify</strong>, <strong>Google</strong>, and
+          <strong>Apple</strong> — optional sign-in providers. We request only
+          the scopes needed to identify you and (for Spotify, if you connect it)
+          read your profile and your followed/top artists. Sign in with Apple
+          supports Apple's private-relay email.</li>
       <li><strong>PostHog</strong> and <strong>Microsoft Clarity</strong> —
           privacy-conscious product analytics on the web experience.</li>
       <li><strong>Firebase Cloud Messaging</strong> (mobile apps) — to deliver
